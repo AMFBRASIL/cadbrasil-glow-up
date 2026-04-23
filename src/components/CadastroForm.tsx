@@ -418,7 +418,7 @@ export function CadastroForm() {
         </div>
 
         <Button
-          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); form.reset(); }}
+          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); setSenhaTemporaria(""); setSenhaVisivel(false); form.reset(); }}
           variant="ghost"
           className="mt-6 text-muted-foreground hover:text-foreground hover:bg-muted"
         >
