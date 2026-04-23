@@ -72,8 +72,8 @@ const schema = z.object({
   prioritario: z.string().min(1, "Selecione"),
   observacoes: z.string().trim().max(500).optional().or(z.literal("")),
   // Aceite
-  aceiteTermos: z.literal(true, { errorMap: () => ({ message: "Você precisa aceitar os termos" }) }),
-  aceiteContato: z.literal(true, { errorMap: () => ({ message: "Autorize o contato para prosseguir" }) }),
+  aceiteTermos: z.literal(true, { message: "Você precisa aceitar os termos" }),
+  aceiteContato: z.literal(true, { message: "Autorize o contato para prosseguir" }),
 });
 
 export type CadastroData = z.infer<typeof schema>;
