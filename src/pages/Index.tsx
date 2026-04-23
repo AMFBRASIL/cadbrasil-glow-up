@@ -66,7 +66,7 @@ const Index = () => {
 
               <div className="space-y-5">
                 <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl lg:text-[3.4rem] leading-[1.05]">
-                  Especialistas em{" "}
+                  Assistente Digital para Cadastramento no{" "}
                   <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
                     SICAF
                   </span>{" "}
