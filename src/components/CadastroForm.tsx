@@ -360,9 +360,9 @@ export function CadastroForm() {
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
-                { id: "PJ", icon: Building2, title: "Sou Empresa", desc: "Cadastro com CNPJ. Buscamos os dados automaticamente na Receita Federal.", badge: "Mais comum" },
-                { id: "PF", icon: User, title: "Sou Pessoa Física", desc: "Cadastro com CPF para atendimento individual." },
-              ] as const).map((opt) => {
+                { id: "PJ" as const, icon: Building2, title: "Sou Empresa", desc: "Cadastro com CNPJ. Buscamos os dados automaticamente na Receita Federal.", badge: "Mais comum" as string | undefined },
+                { id: "PF" as const, icon: User, title: "Sou Pessoa Física", desc: "Cadastro com CPF para atendimento individual.", badge: undefined as string | undefined },
+              ]).map((opt) => {
                 const active = tipoPessoa === opt.id;
                 return (
                   <button
