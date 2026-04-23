@@ -274,17 +274,57 @@ export function CadastroForm() {
 
   if (success) {
     return (
-      <div className="bg-card rounded-3xl shadow-elevated p-10 text-center animate-fade-up">
+      <div className="bg-card rounded-3xl shadow-elevated p-8 md:p-10 text-center animate-fade-up">
         <div className="mx-auto w-16 h-16 rounded-2xl bg-success/10 flex items-center justify-center mb-6">
           <CheckCircle2 className="w-9 h-9 text-success" />
         </div>
         <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-3">
           Cadastro enviado com sucesso!
         </h2>
-        <p className="text-muted-foreground max-w-md mx-auto mb-8 text-balance">
-          Recebemos suas informações. Nossa equipe especializada em SICAF e licitações entrará em contato em até <strong className="text-foreground">1 dia útil</strong>.
+        <p className="text-muted-foreground max-w-md mx-auto mb-6 text-balance">
+          Recebemos suas informações. Para acelerar seu atendimento, envie agora os documentos necessários.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto text-left">
+
+        {/* Protocolo */}
+        <div className="max-w-md mx-auto mb-6 rounded-2xl border border-primary/15 bg-gradient-soft p-5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Número de protocolo</p>
+          <div className="mt-2 flex items-center justify-center gap-2">
+            <p className="font-display font-extrabold text-2xl md:text-3xl text-foreground tracking-wider">
+              {protocolo}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(protocolo);
+                toast.success("Protocolo copiado!");
+              }}
+              className="p-2 rounded-lg hover:bg-primary-soft text-primary transition-smooth"
+              aria-label="Copiar protocolo"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">Guarde este número para acompanhar seu atendimento.</p>
+        </div>
+
+        {/* CTA principal — Enviar documentos */}
+        <a
+          href="https://fornecedor.cadbrasil.com.br"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group relative flex items-center justify-center gap-2.5 w-full max-w-md mx-auto h-14 px-6 rounded-2xl bg-gradient-cta text-primary-foreground font-semibold text-base shadow-cta hover:shadow-elevated hover:opacity-95 transition-smooth"
+        >
+          <FileUp className="w-5 h-5" />
+          Enviar Documentos agora
+          <ExternalLink className="w-4 h-4 opacity-80 group-hover:translate-x-0.5 transition-transform" />
+        </a>
+        <p className="text-xs text-muted-foreground mt-3 flex items-center justify-center gap-1.5">
+          <ShieldCheck className="w-3.5 h-3.5 text-success" />
+          Você será direcionado ao portal seguro do fornecedor
+        </p>
+
+        {/* Confirmação contato */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto text-left mt-8">
           <div className="p-4 rounded-xl bg-primary-soft border border-primary/10">
             <Mail className="w-5 h-5 text-primary mb-2" />
             <p className="text-xs text-muted-foreground">Confirmação enviada para</p>
@@ -296,10 +336,11 @@ export function CadastroForm() {
             <p className="text-sm font-medium text-foreground">{values.telefone}</p>
           </div>
         </div>
+
         <Button
-          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); form.reset(); }}
+          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); form.reset(); }}
           variant="ghost"
-          className="mt-8 text-primary hover:text-primary hover:bg-primary-soft"
+          className="mt-6 text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           Fazer novo cadastro
         </Button>
