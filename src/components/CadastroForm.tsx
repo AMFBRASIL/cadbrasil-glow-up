@@ -654,13 +654,22 @@ export function CadastroForm() {
                     <input className={inputClass} placeholder="Nome do responsável" {...register("nomeResponsavel")} />
                   </Field>
                 </div>
-                <Field label="CPF" required error={errors.cpf?.message}>
+                <Field
+                  label="CPF"
+                  required
+                  error={(values.cpf?.replace(/\D/g, "").length === 11 && !isValidCPF(values.cpf)) ? "CPF inválido" : errors.cpf?.message}
+                  hint={values.cpf?.replace(/\D/g, "").length === 11 && isValidCPF(values.cpf) ? "CPF válido" : undefined}
+                >
                   <input
                     className={inputClass}
                     placeholder="000.000.000-00"
                     inputMode="numeric"
                     value={values.cpf}
-                    onChange={(e) => setValue("cpf", maskCPF(e.target.value), { shouldValidate: true })}
+                    onChange={(e) => {
+                      const masked = maskCPF(e.target.value);
+                      setValue("cpf", masked, { shouldValidate: true });
+                      if (masked.replace(/\D/g, "").length === 11) form.trigger("cpf");
+                    }}
                   />
                 </Field>
                 <Field label="Cargo" required error={errors.cargo?.message}>
