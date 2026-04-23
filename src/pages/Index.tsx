@@ -66,13 +66,17 @@ const Index = () => {
 
               <div className="space-y-5">
                 <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl lg:text-[3.4rem] leading-[1.05]">
-                  Faça seu cadastro com facilidade e conte com a{" "}
+                  Especialistas em{" "}
                   <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-                    CADBRASIL
+                    SICAF
+                  </span>{" "}
+                  e{" "}
+                  <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+                    Comprasnet
                   </span>
                 </h1>
                 <p className="text-lg text-muted-foreground text-balance max-w-xl leading-relaxed">
-                  Preencha seus dados em poucos minutos para iniciar seu atendimento com nossa equipe especializada em <strong className="text-foreground font-semibold">SICAF</strong> e <strong className="text-foreground font-semibold">licitações</strong>.
+                  Cadastre sua empresa com a <strong className="text-foreground font-semibold">CADBRASIL</strong> e venda para o Governo Federal com segurança. Habilitação no <strong className="text-foreground font-semibold">SICAF</strong>, suporte completo no <strong className="text-foreground font-semibold">Comprasnet</strong> e participação em licitações públicas.
                 </p>
               </div>
 
