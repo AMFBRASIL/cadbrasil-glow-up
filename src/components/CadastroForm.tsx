@@ -260,6 +260,9 @@ export function CadastroForm() {
   const onSubmit = async (_data: CadastroData) => {
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 1400));
+    const year = new Date().getFullYear();
+    const rand = Math.floor(100000 + Math.random() * 900000);
+    setProtocolo(`CB-${year}-${rand}`);
     setSubmitting(false);
     setSuccess(true);
   };
