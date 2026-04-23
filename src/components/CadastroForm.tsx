@@ -86,6 +86,22 @@ const baseSchema = {
   aceiteContato: z.literal(true, { message: "Autorize o contato para prosseguir" }),
 };
 
+const isValidCPF = (raw: string): boolean => {
+  const cpf = (raw || "").replace(/\D/g, "");
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+  let d1 = (sum * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  if (d1 !== parseInt(cpf[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+  let d2 = (sum * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d2 === parseInt(cpf[10]);
+};
+
 const schema = z.object(baseSchema).superRefine((data, ctx) => {
   if (data.tipoPessoa === "PJ") {
     if (!data.cnpj || data.cnpj.replace(/\D/g, "").length !== 14)
@@ -97,9 +113,11 @@ const schema = z.object(baseSchema).superRefine((data, ctx) => {
       ctx.addIssue({ code: "custom", path: ["segmento"], message: "Informe o segmento" });
     if (!data.cargo || data.cargo.trim().length < 2)
       ctx.addIssue({ code: "custom", path: ["cargo"], message: "Informe o cargo" });
+    if (!data.cpf || !isValidCPF(data.cpf))
+      ctx.addIssue({ code: "custom", path: ["cpf"], message: "CPF inválido" });
   }
   if (data.tipoPessoa === "PF") {
-    if (!data.cpf || data.cpf.replace(/\D/g, "").length !== 11)
+    if (!data.cpf || !isValidCPF(data.cpf))
       ctx.addIssue({ code: "custom", path: ["cpf"], message: "CPF inválido" });
   }
 });
