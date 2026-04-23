@@ -186,6 +186,25 @@ export function CadastroForm() {
     "DEMAIS": "MEDIA",
   };
 
+  const clearCompanyFields = () => {
+    const fields: Array<keyof CadastroData> = [
+      "razaoSocial",
+      "nomeFantasia",
+      "porte",
+      "segmento",
+      "cep",
+      "rua",
+      "numero",
+      "complemento",
+      "bairro",
+      "cidade",
+      "estado",
+      "telefone",
+      "email",
+    ];
+    fields.forEach((f) => setValue(f, "" as never, { shouldValidate: false }));
+  };
+
   const lookupCNPJ = async (raw: string) => {
     const cnpj = raw.replace(/\D/g, "");
     if (cnpj.length !== 14) return;
@@ -194,7 +213,8 @@ export function CadastroForm() {
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
       if (!res.ok) {
-        toast.error("CNPJ não encontrado na Receita Federal");
+        clearCompanyFields();
+        toast.info("CNPJ não localizado. Preencha os dados manualmente.");
         return;
       }
       const d = await res.json();
@@ -218,7 +238,8 @@ export function CadastroForm() {
       setCnpjFetched(true);
       toast.success("Dados preenchidos automaticamente pela Receita Federal");
     } catch {
-      toast.error("Não foi possível consultar o CNPJ agora");
+      clearCompanyFields();
+      toast.info("Não foi possível consultar agora. Preencha manualmente.");
     } finally {
       setCnpjLoading(false);
     }
