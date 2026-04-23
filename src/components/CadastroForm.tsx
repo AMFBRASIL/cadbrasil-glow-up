@@ -403,20 +403,6 @@ export function CadastroForm() {
           Você será direcionado ao portal seguro do fornecedor
         </p>
 
-        {/* Confirmação contato */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto text-left mt-8">
-          <div className="p-4 rounded-xl bg-primary-soft border border-primary/10">
-            <Mail className="w-5 h-5 text-primary mb-2" />
-            <p className="text-xs text-muted-foreground">Confirmação enviada para</p>
-            <p className="text-sm font-medium text-foreground truncate">{values.email}</p>
-          </div>
-          <div className="p-4 rounded-xl bg-primary-soft border border-primary/10">
-            <Phone className="w-5 h-5 text-primary mb-2" />
-            <p className="text-xs text-muted-foreground">Contato</p>
-            <p className="text-sm font-medium text-foreground">{values.telefone}</p>
-          </div>
-        </div>
-
         <Button
           onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); setSenhaTemporaria(""); setSenhaVisivel(false); form.reset(); }}
           variant="ghost"
