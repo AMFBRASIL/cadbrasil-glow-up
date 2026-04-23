@@ -20,6 +20,9 @@ import {
   FileUp,
   Copy,
   ExternalLink,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -142,6 +145,8 @@ export function CadastroForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [protocolo, setProtocolo] = useState<string>("");
+  const [senhaTemporaria, setSenhaTemporaria] = useState<string>("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjFetched, setCnpjFetched] = useState(false);
@@ -281,12 +286,26 @@ export function CadastroForm() {
   };
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
+  const gerarSenhaTemporaria = () => {
+    const maiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const minusculas = "abcdefghijkmnpqrstuvwxyz";
+    const numeros = "23456789";
+    const especiais = "!@#$%&*";
+    const todos = maiusculas + minusculas + numeros + especiais;
+    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+    let senha = pick(maiusculas) + pick(minusculas) + pick(numeros) + pick(especiais);
+    for (let i = 0; i < 8; i++) senha += pick(todos);
+    return senha.split("").sort(() => Math.random() - 0.5).join("");
+  };
+
   const onSubmit = async (_data: CadastroData) => {
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 1400));
     const year = new Date().getFullYear();
     const rand = Math.floor(100000 + Math.random() * 900000);
     setProtocolo(`CB-${year}-${rand}`);
+    setSenhaTemporaria(gerarSenhaTemporaria());
+    setSenhaVisivel(false);
     setSubmitting(false);
     setSuccess(true);
   };
@@ -328,6 +347,46 @@ export function CadastroForm() {
           <p className="text-xs text-muted-foreground mt-2">Guarde este número para acompanhar seu atendimento.</p>
         </div>
 
+        {/* Senha temporária */}
+        <div className="max-w-md mx-auto mb-6 rounded-2xl border border-primary/15 bg-card p-5 text-left">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center">
+              <KeyRound className="w-4 h-4 text-primary" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">Sua senha temporária de acesso</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 font-mono text-base md:text-lg font-bold tracking-wider bg-muted rounded-lg px-3 py-2.5 text-foreground select-all break-all">
+              {senhaVisivel ? senhaTemporaria : "•".repeat(senhaTemporaria.length)}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSenhaVisivel((v) => !v)}
+              className="p-2.5 rounded-lg hover:bg-primary-soft text-primary transition-smooth border border-border"
+              aria-label={senhaVisivel ? "Ocultar senha" : "Mostrar senha"}
+            >
+              {senhaVisivel ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(senhaTemporaria);
+                toast.success("Senha copiada!");
+              }}
+              className="p-2.5 rounded-lg hover:bg-primary-soft text-primary transition-smooth border border-border"
+              aria-label="Copiar senha"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
+            <Mail className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />
+            <p>
+              Enviamos esta senha também para <span className="font-medium text-foreground">{values.email}</span>. Use-a para acessar o portal e recomendamos alterá-la no primeiro acesso.
+            </p>
+          </div>
+        </div>
+
         {/* CTA principal — Enviar documentos */}
         <a
           href="https://fornecedor.cadbrasil.com.br"
@@ -359,7 +418,7 @@ export function CadastroForm() {
         </div>
 
         <Button
-          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); form.reset(); }}
+          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); setSenhaTemporaria(""); setSenhaVisivel(false); form.reset(); }}
           variant="ghost"
           className="mt-6 text-muted-foreground hover:text-foreground hover:bg-muted"
         >
