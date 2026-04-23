@@ -142,6 +142,8 @@ export function CadastroForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [protocolo, setProtocolo] = useState<string>("");
+  const [senhaTemporaria, setSenhaTemporaria] = useState<string>("");
+  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjFetched, setCnpjFetched] = useState(false);
