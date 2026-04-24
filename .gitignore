@@ -16,6 +16,10 @@ out
 .env
 .env*.local
 
+# Não versionar (pedido: não enviar ao GitHub)
+docs/
+scripts/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
