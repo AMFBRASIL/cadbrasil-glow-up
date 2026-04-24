@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Building2,
   ShieldCheck,
@@ -24,6 +25,10 @@ const steps = [
     tip: "Dica: use um e-mail valido, pois sera seu principal canal de acesso e comunicacao.",
     ctaLabel: "Acessar site de cadastro",
     ctaHref: "https://cadbrasil-glow-up.vercel.app/",
+    previewImage: {
+      src: "/procedimento-etapa-1.png",
+      alt: "Tela inicial da CADBRASIL para orientar o acesso ao cadastro",
+    },
   },
   {
     icon: Lock,
@@ -152,6 +157,35 @@ export default function ProcedimentoSicafPage() {
                         {step.ctaLabel}
                         <ArrowRight className="w-4 h-4" />
                       </a>
+                    ) : null}
+                    {"previewImage" in step && step.previewImage ? (
+                      <details className="group rounded-xl border border-border/70 bg-background/70">
+                        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-primary flex items-center justify-between">
+                          Ver imagem de apoio da Etapa 1
+                          <span className="text-xs text-muted-foreground group-open:hidden">Clique para ampliar</span>
+                          <span className="text-xs text-muted-foreground hidden group-open:inline">Clique para recolher</span>
+                        </summary>
+                        <div className="px-4 pb-4 space-y-3">
+                          <div className="rounded-lg overflow-hidden border border-border/70 w-full max-w-xs">
+                            <Image
+                              src={step.previewImage.src}
+                              alt={step.previewImage.alt}
+                              width={900}
+                              height={600}
+                              className="w-full h-auto object-cover"
+                            />
+                          </div>
+                          <a
+                            href={step.previewImage.src}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-glow transition-smooth"
+                          >
+                            Abrir imagem em tamanho completo
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </details>
                     ) : null}
                   </div>
                 </div>
