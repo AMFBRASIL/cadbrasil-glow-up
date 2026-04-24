@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -10,7 +12,10 @@ import {
   FolderOpen,
   Bot,
   ArrowRight,
+  ZoomIn,
+  PlayCircle,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 const steps = [
   {
@@ -25,10 +30,12 @@ const steps = [
     tip: "Dica: use um e-mail valido, pois sera seu principal canal de acesso e comunicacao.",
     ctaLabel: "Acessar site de cadastro",
     ctaHref: "https://cadbrasil-glow-up.vercel.app/",
-    previewImage: {
-      src: "/procedimento-etapa-1.png",
-      alt: "Tela inicial da CADBRASIL para orientar o acesso ao cadastro",
-    },
+    previewImages: [
+      {
+        src: "/procedimento-etapa-1.png",
+        alt: "Tela inicial da CADBRASIL para orientar o acesso ao cadastro",
+      },
+    ],
   },
   {
     icon: Lock,
@@ -37,6 +44,20 @@ const steps = [
       "Apos o cadastro, acesse o Portal do Fornecedor.",
       "Faca login com seu usuario (e-mail) e senha cadastrada.",
       'Aqui comeca o "painel de controle" da sua jornada dentro da CADBRASIL.',
+    ],
+    previewImages: [
+      {
+        src: "/procedimento-etapa-2-1.png",
+        alt: "Tela de login do sistema para acessar o portal",
+      },
+      {
+        src: "/procedimento-etapa-2-2.png",
+        alt: "Dashboard inicial apos acesso ao portal",
+      },
+      {
+        src: "/procedimento-etapa-2-3.png",
+        alt: "Tela de credenciamentos SICAF no portal do fornecedor",
+      },
     ],
   },
   {
@@ -48,6 +69,7 @@ const steps = [
       "Realize o pagamento da licenca da plataforma.",
       "Apos o pagamento, o sistema libera automaticamente o inicio do processo.",
     ],
+    videoUrl: "https://www.youtube.com/watch?v=H85awJEYehs",
   },
   {
     icon: FolderOpen,
@@ -60,6 +82,7 @@ const steps = [
     ctaLabel: "Instalar Assistente SICAF",
     ctaHref:
       "https://chromewebstore.google.com/detail/cadbrasil-%E2%80%94-assistente-si/cdhhdgcabgbjdambnhkmdibhnmfkaicd",
+    videoUrl: "https://www.youtube.com/watch?v=H85awJEYehs",
   },
   {
     icon: Bot,
@@ -70,10 +93,26 @@ const steps = [
       "Siga o passo a passo automatizado: preenchimento de dados, validacoes e orientacoes em tempo real.",
       "O assistente elimina duvidas e reduz erros, como ter um especialista ao seu lado durante todo o processo.",
     ],
+    videoUrl: "https://www.youtube.com/watch?v=H85awJEYehs",
   },
 ];
 
 const quickFlow = ["Cadastro", "Portal", "Pagamento", "Documentos", "Assistente", "SICAF"];
+
+function toYoutubeEmbed(url: string): string {
+  try {
+    const u = new URL(url);
+    const id = u.searchParams.get("v");
+    if (id) return `https://www.youtube.com/embed/${id}`;
+    if (u.hostname.includes("youtu.be")) {
+      const shortId = u.pathname.replace("/", "");
+      if (shortId) return `https://www.youtube.com/embed/${shortId}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
 
 export default function ProcedimentoSicafPage() {
   return (
@@ -147,45 +186,96 @@ export default function ProcedimentoSicafPage() {
                         {step.tip}
                       </p>
                     ) : null}
-                    {"ctaHref" in step && step.ctaHref ? (
-                      <a
-                        href={step.ctaHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-primary text-primary-foreground text-sm font-semibold shadow-soft hover:shadow-card transition-smooth"
-                      >
-                        {step.ctaLabel}
-                        <ArrowRight className="w-4 h-4" />
-                      </a>
-                    ) : null}
-                    {"previewImage" in step && step.previewImage ? (
-                      <details className="group rounded-xl border border-border/70 bg-background/70">
-                        <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-primary flex items-center justify-between">
-                          Ver imagem de apoio da Etapa 1
-                          <span className="text-xs text-muted-foreground group-open:hidden">Clique para ampliar</span>
-                          <span className="text-xs text-muted-foreground hidden group-open:inline">Clique para recolher</span>
-                        </summary>
-                        <div className="px-4 pb-4 space-y-3">
-                          <div className="rounded-lg overflow-hidden border border-border/70 w-full max-w-xs">
-                            <Image
-                              src={step.previewImage.src}
-                              alt={step.previewImage.alt}
-                              width={900}
-                              height={600}
-                              className="w-full h-auto object-cover"
-                            />
-                          </div>
+                    {("ctaHref" in step && step.ctaHref) || ("videoUrl" in step && step.videoUrl) ? (
+                      <div className="flex flex-col items-start gap-2.5">
+                        {"ctaHref" in step && step.ctaHref ? (
                           <a
-                            href={step.previewImage.src}
+                            href={step.ctaHref}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary-glow transition-smooth"
+                            className="inline-flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-primary text-primary-foreground text-sm font-semibold shadow-soft hover:shadow-card transition-smooth"
                           >
-                            Abrir imagem em tamanho completo
-                            <ArrowRight className="w-3.5 h-3.5" />
+                            {step.ctaLabel}
+                            <ArrowRight className="w-4 h-4" />
                           </a>
+                        ) : null}
+                        {"videoUrl" in step && step.videoUrl ? (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <button
+                                type="button"
+                                className="inline-flex w-fit items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-primary/30 text-primary text-sm font-semibold shadow-soft hover:shadow-card transition-smooth"
+                              >
+                                <PlayCircle className="w-4 h-4" />
+                                Assistir video da etapa
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-5xl p-3 sm:p-5">
+                              <DialogHeader>
+                                <DialogTitle>{step.title} - Video explicativo</DialogTitle>
+                              </DialogHeader>
+                              <div className="rounded-lg overflow-hidden border border-border/70 bg-black aspect-video">
+                                <iframe
+                                  src={toYoutubeEmbed(step.videoUrl)}
+                                  title={`Video da ${step.title}`}
+                                  className="w-full h-full"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                  referrerPolicy="strict-origin-when-cross-origin"
+                                  allowFullScreen
+                                />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {"previewImages" in step && step.previewImages?.length ? (
+                      <div className="rounded-xl border border-primary/20 bg-primary-soft/40 p-3">
+                        <p className="text-xs font-semibold text-primary mb-2">
+                          Exemplo visual de onde clicar ({step.previewImages.length} imagem{step.previewImages.length > 1 ? "ens" : ""})
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {step.previewImages.map((img, idx) => (
+                            <Dialog key={`${img.src}-${idx}`}>
+                              <DialogTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="group relative block rounded-lg overflow-hidden border border-primary/30 shadow-soft hover:shadow-card transition-smooth text-left"
+                                >
+                                  <Image
+                                    src={img.src}
+                                    alt={img.alt}
+                                    width={900}
+                                    height={600}
+                                    className="w-full h-auto object-cover group-hover:scale-[1.015] transition-smooth"
+                                  />
+                                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/90 text-[11px] font-bold text-slate-900">
+                                      <ZoomIn className="w-3.5 h-3.5" />
+                                      Clique para ampliar
+                                    </span>
+                                  </div>
+                                </button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-5xl p-3 sm:p-5">
+                                <DialogHeader>
+                                  <DialogTitle>{step.title} - Imagem {idx + 1}</DialogTitle>
+                                </DialogHeader>
+                                <div className="rounded-lg overflow-hidden border border-border/70">
+                                  <Image
+                                    src={img.src}
+                                    alt={img.alt}
+                                    width={1600}
+                                    height={1000}
+                                    className="w-full h-auto object-contain"
+                                    priority
+                                  />
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          ))}
                         </div>
-                      </details>
+                      </div>
                     ) : null}
                   </div>
                 </div>
