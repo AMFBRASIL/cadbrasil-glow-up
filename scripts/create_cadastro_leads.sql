@@ -1,0 +1,38 @@
+-- Execute no MySQL (ex.: phpMyAdmin ou mysql CLI) no banco cadbrasilsys
+-- antes de usar POST /api/cadastro em produção.
+
+CREATE TABLE IF NOT EXISTS cadastro_leads (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  protocolo VARCHAR(32) NOT NULL,
+  senha_hash VARCHAR(255) NOT NULL,
+  tipo_pessoa ENUM('PJ','PF') NOT NULL,
+  razao_social VARCHAR(160) NULL,
+  nome_fantasia VARCHAR(160) NULL,
+  cnpj VARCHAR(14) NULL,
+  inscricao_estadual VARCHAR(30) NULL,
+  porte VARCHAR(32) NULL,
+  segmento VARCHAR(120) NULL,
+  nome_responsavel VARCHAR(120) NOT NULL,
+  cpf VARCHAR(11) NULL,
+  cargo VARCHAR(60) NULL,
+  telefone VARCHAR(16) NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  cep VARCHAR(8) NOT NULL,
+  rua VARCHAR(160) NOT NULL,
+  numero VARCHAR(10) NOT NULL,
+  complemento VARCHAR(60) NULL,
+  bairro VARCHAR(80) NOT NULL,
+  cidade VARCHAR(80) NOT NULL,
+  estado CHAR(2) NOT NULL,
+  servico VARCHAR(120) NOT NULL,
+  possui_sicaf VARCHAR(32) NOT NULL,
+  prioritario VARCHAR(16) NOT NULL,
+  observacoes VARCHAR(500) NULL,
+  aceite_termos TINYINT(1) NOT NULL DEFAULT 0,
+  aceite_contato TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_protocolo (protocolo),
+  KEY idx_email (email),
+  KEY idx_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,7 +1,9 @@
+"use client";
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { cadastroSchema, type CadastroData, isValidCPF } from "@/lib/validations/cadastro";
 import {
   ArrowRight,
   ArrowLeft,
@@ -21,8 +23,6 @@ import {
   Copy,
   ExternalLink,
   KeyRound,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,79 +50,6 @@ const maskPhone = (v: string) => {
 
 const maskCEP = (v: string) =>
   v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
-
-/* ---------- Schema ---------- */
-const baseSchema = {
-  // Identificação
-  tipoPessoa: z.enum(["PJ", "PF"], { message: "Selecione CPF ou CNPJ" }),
-  // Empresa (PJ)
-  razaoSocial: z.string().trim().max(160).optional().or(z.literal("")),
-  nomeFantasia: z.string().trim().max(160).optional().or(z.literal("")),
-  cnpj: z.string().optional().or(z.literal("")),
-  inscricaoEstadual: z.string().trim().max(30).optional().or(z.literal("")),
-  porte: z.string().optional().or(z.literal("")),
-  segmento: z.string().trim().max(120).optional().or(z.literal("")),
-  // Responsável / Pessoa
-  nomeResponsavel: z.string().trim().min(2, "Informe o nome").max(120),
-  cpf: z.string().optional().or(z.literal("")),
-  cargo: z.string().trim().max(60).optional().or(z.literal("")),
-  telefone: z.string().refine((v) => v.replace(/\D/g, "").length >= 10, "Telefone inválido"),
-  email: z.string().trim().email("E-mail inválido").max(160),
-  // Endereço
-  cep: z.string().refine((v) => v.replace(/\D/g, "").length === 8, "CEP inválido"),
-  rua: z.string().trim().min(2, "Informe a rua").max(160),
-  numero: z.string().trim().min(1, "Nº").max(10),
-  complemento: z.string().trim().max(60).optional().or(z.literal("")),
-  bairro: z.string().trim().min(2, "Informe o bairro").max(80),
-  cidade: z.string().trim().min(2, "Informe a cidade").max(80),
-  estado: z.string().length(2, "UF"),
-  // Interesse
-  servico: z.string().min(1, "Selecione um serviço"),
-  possuiSicaf: z.string().min(1, "Selecione"),
-  prioritario: z.string().min(1, "Selecione"),
-  observacoes: z.string().trim().max(500).optional().or(z.literal("")),
-  // Aceite
-  aceiteTermos: z.literal(true, { message: "Você precisa aceitar os termos" }),
-  aceiteContato: z.literal(true, { message: "Autorize o contato para prosseguir" }),
-};
-
-const isValidCPF = (raw: string): boolean => {
-  const cpf = (raw || "").replace(/\D/g, "");
-  if (cpf.length !== 11) return false;
-  if (/^(\d)\1{10}$/.test(cpf)) return false;
-  let sum = 0;
-  for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
-  let d1 = (sum * 10) % 11;
-  if (d1 === 10) d1 = 0;
-  if (d1 !== parseInt(cpf[9])) return false;
-  sum = 0;
-  for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
-  let d2 = (sum * 10) % 11;
-  if (d2 === 10) d2 = 0;
-  return d2 === parseInt(cpf[10]);
-};
-
-const schema = z.object(baseSchema).superRefine((data, ctx) => {
-  if (data.tipoPessoa === "PJ") {
-    if (!data.cnpj || data.cnpj.replace(/\D/g, "").length !== 14)
-      ctx.addIssue({ code: "custom", path: ["cnpj"], message: "CNPJ inválido" });
-    if (!data.razaoSocial || data.razaoSocial.trim().length < 2)
-      ctx.addIssue({ code: "custom", path: ["razaoSocial"], message: "Informe a razão social" });
-    if (!data.porte) ctx.addIssue({ code: "custom", path: ["porte"], message: "Selecione o porte" });
-    if (!data.segmento || data.segmento.trim().length < 2)
-      ctx.addIssue({ code: "custom", path: ["segmento"], message: "Informe o segmento" });
-    if (!data.cargo || data.cargo.trim().length < 2)
-      ctx.addIssue({ code: "custom", path: ["cargo"], message: "Informe o cargo" });
-    if (!data.cpf || !isValidCPF(data.cpf))
-      ctx.addIssue({ code: "custom", path: ["cpf"], message: "CPF inválido" });
-  }
-  if (data.tipoPessoa === "PF") {
-    if (!data.cpf || !isValidCPF(data.cpf))
-      ctx.addIssue({ code: "custom", path: ["cpf"], message: "CPF inválido" });
-  }
-});
-
-export type CadastroData = z.infer<typeof schema>;
 
 const STEPS = [
   { id: 0, label: "Tipo", icon: Sparkles },
@@ -163,14 +90,12 @@ export function CadastroForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [protocolo, setProtocolo] = useState<string>("");
-  const [senhaTemporaria, setSenhaTemporaria] = useState<string>("");
-  const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjFetched, setCnpjFetched] = useState(false);
 
   const form = useForm<CadastroData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(cadastroSchema),
     mode: "onTouched",
     defaultValues: {
       tipoPessoa: undefined as unknown as "PJ",
@@ -179,6 +104,7 @@ export function CadastroForm() {
       nomeResponsavel: "", cpf: "", cargo: "", telefone: "", email: "",
       cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
       servico: "", possuiSicaf: "", prioritario: "", observacoes: "",
+      senha: "", confirmarSenha: "", emailAcesso: "", aceitaNotificacoes: false,
       aceiteTermos: undefined as unknown as true,
       aceiteContato: undefined as unknown as true,
     },
@@ -198,7 +124,7 @@ export function CadastroForm() {
       : ["telefone", "email"],
     3: ["cep", "rua", "numero", "complemento", "bairro", "cidade", "estado"],
     4: ["servico", "possuiSicaf", "prioritario", "observacoes"],
-    5: ["aceiteTermos", "aceiteContato"],
+    5: ["senha", "confirmarSenha", "emailAcesso", "aceiteTermos", "aceiteContato"],
   };
 
   /* ---------- CNPJ lookup (BrasilAPI / Receita Federal) ---------- */
@@ -304,28 +230,35 @@ export function CadastroForm() {
   };
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
-  const gerarSenhaTemporaria = () => {
-    const maiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const minusculas = "abcdefghijkmnpqrstuvwxyz";
-    const numeros = "23456789";
-    const especiais = "!@#$%&*";
-    const todos = maiusculas + minusculas + numeros + especiais;
-    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
-    let senha = pick(maiusculas) + pick(minusculas) + pick(numeros) + pick(especiais);
-    for (let i = 0; i < 8; i++) senha += pick(todos);
-    return senha.split("").sort(() => Math.random() - 0.5).join("");
-  };
-
-  const onSubmit = async (_data: CadastroData) => {
+  const onSubmit = async (data: CadastroData) => {
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    const year = new Date().getFullYear();
-    const rand = Math.floor(100000 + Math.random() * 900000);
-    setProtocolo(`CB-${year}-${rand}`);
-    setSenhaTemporaria(gerarSenhaTemporaria());
-    setSenhaVisivel(false);
-    setSubmitting(false);
-    setSuccess(true);
+    try {
+      const res = await fetch("/api/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+        success?: boolean;
+        protocolo?: string;
+      };
+      if (!res.ok) {
+        toast.error(json.error || json.message || "Não foi possível enviar o cadastro.");
+        return;
+      }
+      if (!json.success || !json.protocolo) {
+        toast.error("Resposta inválida do servidor.");
+        return;
+      }
+      setProtocolo(json.protocolo);
+      setSuccess(true);
+    } catch {
+      toast.error("Erro de conexão. Tente novamente.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const progress = ((step + 1) / STEPS.length) * 100;
@@ -365,44 +298,15 @@ export function CadastroForm() {
           <p className="text-xs text-muted-foreground mt-2">Guarde este número para acompanhar seu atendimento.</p>
         </div>
 
-        {/* Senha temporária */}
         <div className="max-w-md mx-auto mb-6 rounded-2xl border border-primary/15 bg-card p-5 text-left">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center">
-              <KeyRound className="w-4 h-4 text-primary" />
-            </div>
-            <p className="text-sm font-semibold text-foreground">Sua senha temporária de acesso</p>
+          <div className="flex items-center gap-2 mb-2">
+            <KeyRound className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold text-foreground">Acesso ao portal</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 font-mono text-base md:text-lg font-bold tracking-wider bg-muted rounded-lg px-3 py-2.5 text-foreground select-all break-all">
-              {senhaVisivel ? senhaTemporaria : "•".repeat(senhaTemporaria.length)}
-            </div>
-            <button
-              type="button"
-              onClick={() => setSenhaVisivel((v) => !v)}
-              className="p-2.5 rounded-lg hover:bg-primary-soft text-primary transition-smooth border border-border"
-              aria-label={senhaVisivel ? "Ocultar senha" : "Mostrar senha"}
-            >
-              {senhaVisivel ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(senhaTemporaria);
-                toast.success("Senha copiada!");
-              }}
-              className="p-2.5 rounded-lg hover:bg-primary-soft text-primary transition-smooth border border-border"
-              aria-label="Copiar senha"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
-            <Mail className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" />
-            <p>
-              Enviamos esta senha também para <span className="font-medium text-foreground">{values.email}</span>. Use-a para acessar o portal e recomendamos alterá-la no primeiro acesso.
-            </p>
-          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Utilize o e-mail <span className="font-medium text-foreground">{(values.emailAcesso?.trim() || values.email)}</span> e a{" "}
+            <strong className="text-foreground">senha que você definiu</strong> no cadastro. Se configurado no servidor, você receberá um e-mail de confirmação.
+          </p>
         </div>
 
         {/* CTA principal — Enviar documentos */}
@@ -422,7 +326,13 @@ export function CadastroForm() {
         </p>
 
         <Button
-          onClick={() => { setSuccess(false); setStep(0); setCnpjFetched(false); setProtocolo(""); setSenhaTemporaria(""); setSenhaVisivel(false); form.reset(); }}
+          onClick={() => {
+            setSuccess(false);
+            setStep(0);
+            setCnpjFetched(false);
+            setProtocolo("");
+            form.reset();
+          }}
           variant="ghost"
           className="mt-6 text-muted-foreground hover:text-foreground hover:bg-muted"
         >
@@ -832,7 +742,49 @@ export function CadastroForm() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <Field label="Senha de acesso ao portal" required error={errors.senha?.message}>
+                <input
+                  type="password"
+                  className={inputClass}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 6 caracteres"
+                  {...register("senha")}
+                />
+              </Field>
+              <Field label="Confirmar senha" required error={errors.confirmarSenha?.message}>
+                <input
+                  type="password"
+                  className={inputClass}
+                  autoComplete="new-password"
+                  placeholder="Repita a senha"
+                  {...register("confirmarSenha")}
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Field
+                  label="E-mail de login (opcional)"
+                  hint="Se vazio, usamos o mesmo e-mail principal do passo anterior."
+                  error={errors.emailAcesso?.message}
+                >
+                  <input type="email" className={inputClass} placeholder="login@suaempresa.com.br" {...register("emailAcesso")} />
+                </Field>
+              </div>
+            </div>
+
             <div className="space-y-3">
+              <label className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary-glow/60 cursor-pointer transition-smooth">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 w-4 h-4 accent-primary"
+                  checked={values.aceitaNotificacoes === true}
+                  onChange={(e) => setValue("aceitaNotificacoes", e.target.checked, { shouldValidate: true })}
+                />
+                <span className="text-sm text-foreground/80">
+                  Autorizo enviar uma <strong className="text-foreground">notificação interna</strong> à equipe CADBRASIL sobre este cadastro (e-mail operacional).
+                </span>
+              </label>
+
               <label className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary-glow/60 cursor-pointer transition-smooth">
                 <input
                   type="checkbox"

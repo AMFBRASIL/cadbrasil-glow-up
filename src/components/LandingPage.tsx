@@ -1,5 +1,5 @@
+import Image from "next/image";
 import { CadastroForm } from "@/components/CadastroForm";
-import heroBg from "@/assets/hero-bg.jpg";
 import {
   ShieldCheck,
   Sparkles,
@@ -26,10 +26,9 @@ const benefits = [
   "Processo simplificado de ponta a ponta",
 ];
 
-const Index = () => {
+export function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Top bar */}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-xl sticky top-0 z-40">
         <div className="container max-w-7xl flex items-center justify-between h-16">
           <a href="/" className="flex items-center gap-2.5">
@@ -49,12 +48,10 @@ const Index = () => {
       </header>
 
       <main className="relative">
-        {/* Decorative grid */}
         <div className="absolute inset-x-0 top-0 h-[520px] bg-grid opacity-50 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
 
         <section className="relative container max-w-7xl pt-10 md:pt-16 pb-16 md:pb-24">
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-start">
-            {/* LEFT — Institutional */}
             <div className="space-y-8 animate-fade-up">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-soft border border-primary/10 text-xs font-semibold text-primary">
                 <span className="relative flex h-2 w-2">
@@ -76,11 +73,12 @@ const Index = () => {
                   </span>
                 </h1>
                 <p className="text-lg text-muted-foreground text-balance max-w-xl leading-relaxed">
-                  Cadastre sua empresa com a <strong className="text-foreground font-semibold">CADBRASIL</strong> e venda para o Governo Federal com segurança. Habilitação no <strong className="text-foreground font-semibold">SICAF</strong>, suporte completo no <strong className="text-foreground font-semibold">Comprasnet</strong> e participação em licitações públicas.
+                  Cadastre sua empresa com a <strong className="text-foreground font-semibold">CADBRASIL</strong> e venda para o Governo Federal com segurança. Habilitação no{" "}
+                  <strong className="text-foreground font-semibold">SICAF</strong>, suporte completo no{" "}
+                  <strong className="text-foreground font-semibold">Comprasnet</strong> e participação em licitações públicas.
                 </p>
               </div>
 
-              {/* Highlights */}
               <div className="grid sm:grid-cols-2 gap-3 max-w-xl">
                 {highlights.map((h) => (
                   <div
@@ -88,7 +86,7 @@ const Index = () => {
                     className="group flex items-start gap-3 p-4 rounded-2xl bg-card border border-border/70 shadow-soft hover:shadow-card hover:border-primary-glow/40 transition-smooth"
                   >
                     <div className="w-9 h-9 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:bg-gradient-primary group-hover:text-primary-foreground transition-smooth">
-                      <h.icon className="w-4.5 h-4.5" strokeWidth={2.2} />
+                      <h.icon className="w-[18px] h-[18px]" strokeWidth={2.2} />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground leading-tight">{h.title}</p>
@@ -98,36 +96,48 @@ const Index = () => {
                 ))}
               </div>
 
-              {/* Trust strip */}
               <div className="hidden lg:flex items-center gap-6 pt-4">
                 <div className="flex items-center gap-2.5">
                   <div className="flex -space-x-2">
-                    {[0,1,2,3].map((i) => (
-                      <div key={i} className="w-9 h-9 rounded-full border-2 border-background bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-[10px] font-bold text-primary-foreground">
-                        {["JM","RS","CL","AP"][i]}
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="w-9 h-9 rounded-full border-2 border-background bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-[10px] font-bold text-primary-foreground"
+                      >
+                        {["JM", "RS", "CL", "AP"][i]}
                       </div>
                     ))}
                   </div>
                   <div>
                     <div className="flex items-center gap-0.5">
-                      {[...Array(5)].map((_,i)=>(<Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />))}
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      ))}
                     </div>
                     <p className="text-xs text-muted-foreground">+2.500 empresas atendidas</p>
                   </div>
                 </div>
                 <div className="h-10 w-px bg-border" />
                 <div>
-                  <p className="text-2xl font-display font-extrabold text-foreground leading-none">15<span className="text-primary-glow">+</span></p>
+                  <p className="text-2xl font-display font-extrabold text-foreground leading-none">
+                    15<span className="text-primary-glow">+</span>
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">anos de mercado</p>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT — Form card */}
             <div className="relative animate-fade-up" style={{ animationDelay: "0.1s" }}>
-              {/* Decorative blurred image accent */}
-              <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-60 blur-2xl">
-                <img src={heroBg} alt="" aria-hidden className="w-full h-full object-cover rounded-[2rem]" />
+              <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-60 blur-2xl overflow-hidden min-h-[280px]">
+                <Image
+                  src="/hero-bg.jpg"
+                  alt=""
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 480px"
+                  className="object-cover rounded-[2rem]"
+                  aria-hidden
+                  priority
+                />
               </div>
               <CadastroForm />
 
@@ -139,7 +149,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Benefits band */}
         <section className="bg-gradient-hero relative overflow-hidden">
           <div className="absolute inset-0 bg-grid opacity-20" />
           <div className="container max-w-7xl py-14 md:py-20 relative">
@@ -155,7 +164,10 @@ const Index = () => {
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 {benefits.map((b) => (
-                  <div key={b} className="flex items-center gap-3 p-4 rounded-2xl bg-primary-foreground/5 border border-primary-foreground/10 backdrop-blur-sm">
+                  <div
+                    key={b}
+                    className="flex items-center gap-3 p-4 rounded-2xl bg-primary-foreground/5 border border-primary-foreground/10 backdrop-blur-sm"
+                  >
                     <CheckCircle2 className="w-5 h-5 text-primary-glow shrink-0" />
                     <p className="text-sm font-medium text-primary-foreground">{b}</p>
                   </div>
@@ -165,7 +177,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Trust footer */}
         <section className="container max-w-7xl py-12">
           <div className="grid md:grid-cols-3 gap-4">
             {[
@@ -189,13 +200,15 @@ const Index = () => {
         <div className="container max-w-7xl py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} CADBRASIL · Todos os direitos reservados</p>
           <div className="flex items-center gap-5">
-            <a href="#" className="hover:text-foreground transition-smooth">Política de Privacidade</a>
-            <a href="#" className="hover:text-foreground transition-smooth">Termos de Uso</a>
+            <a href="#" className="hover:text-foreground transition-smooth">
+              Política de Privacidade
+            </a>
+            <a href="#" className="hover:text-foreground transition-smooth">
+              Termos de Uso
+            </a>
           </div>
         </div>
       </footer>
     </div>
   );
-};
-
-export default Index;
+}
