@@ -3,6 +3,9 @@
  * @see docs/EMAIL_API_ENVIO.md
  */
 
+import type { RowDataPacket } from "mysql2";
+import { getPool } from "@/lib/db";
+
 export type EmailApiPayload = {
   email_destino: string;
   nome_destino: string;
@@ -34,6 +37,63 @@ export function getEmailApiUrl(): string {
   const raw = process.env.EMAIL_API_URL?.trim();
   if (raw && !raw.includes("your-") && raw.length > 0) return raw;
   return "https://send.cadbr.com.br/sendCron";
+}
+
+type EmailTemplateRow = RowDataPacket & {
+  id: number;
+  nome: string;
+  assunto: string | null;
+  corpo_html: string | null;
+  ativo: number;
+};
+
+type WelcomeTemplateData = {
+  nome: string;
+  email: string;
+  empresa: string;
+  perfil: string;
+  link_acesso: string;
+  protocolo: string;
+  servico: string;
+};
+
+function getPortalAccessUrl(): string {
+  const url = process.env.PORTAL_URL?.trim() || process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (url) return url;
+  return "https://cadbrasil.com.br";
+}
+
+function renderPlaceholders(
+  template: string,
+  vars: Record<string, string>,
+  opts?: { escapeValues?: boolean }
+): string {
+  const map = Object.entries(vars).reduce<Record<string, string>>((acc, [k, v]) => {
+    acc[k.toLowerCase()] = v ?? "";
+    return acc;
+  }, {});
+  return template.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (full, key: string) => {
+    const val = map[key.toLowerCase()];
+    if (val === undefined) return full;
+    return opts?.escapeValues ? escapeHtml(val) : val;
+  });
+}
+
+async function getWelcomeTemplateFromDb(): Promise<EmailTemplateRow | null> {
+  try {
+    const pool = getPool();
+    const [rows] = await pool.query<EmailTemplateRow[]>(
+      "SELECT id, nome, assunto, corpo_html, ativo FROM templates_email WHERE id = ? LIMIT 1",
+      [1]
+    );
+    if (!rows.length) return null;
+    const row = rows[0];
+    if (!row.ativo || !row.corpo_html) return null;
+    return row;
+  } catch (e) {
+    console.warn("[email-api] Falha ao carregar template id=1 (usando fallback):", e);
+    return null;
+  }
 }
 
 export async function postSendCron(payload: EmailApiPayload): Promise<unknown> {
@@ -137,11 +197,27 @@ export async function enviarEmailCadastro(d: {
     console.warn("[email-api] Envio ignorado: EMAIL_API_URL é placeholder.");
     return;
   }
+  const vars: WelcomeTemplateData = {
+    nome: d.nomeResponsavel,
+    email: d.emailAcesso,
+    empresa: d.razaoSocial,
+    perfil: d.servicoLabel || d.tipoServico,
+    link_acesso: getPortalAccessUrl(),
+    protocolo: d.protocolo,
+    servico: d.servicoLabel || d.tipoServico,
+  };
+  const dbTemplate = await getWelcomeTemplateFromDb();
+  const assunto = dbTemplate?.assunto
+    ? renderPlaceholders(dbTemplate.assunto, vars, { escapeValues: false })
+    : assuntoBoasVindas();
+  const corpoHtml = dbTemplate?.corpo_html
+    ? renderPlaceholders(dbTemplate.corpo_html, vars, { escapeValues: true })
+    : getCadastroWelcomeHtml(d);
   const payload: EmailApiPayload = {
     email_destino: d.emailResponsavel,
     nome_destino: d.razaoSocial,
-    assunto: assuntoBoasVindas(),
-    corpo_html: getCadastroWelcomeHtml(d),
+    assunto,
+    corpo_html: corpoHtml,
     corpo_texto: getCadastroWelcomeText(d),
     prioridade: 1,
     max_tentativas: 3,
