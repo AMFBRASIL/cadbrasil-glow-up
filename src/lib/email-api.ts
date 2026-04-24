@@ -230,28 +230,33 @@ export async function dispararEmailsPosCadastro(d: {
   servicoLabel: string;
   aceitaNotificacoes: boolean;
 }): Promise<void> {
-  try {
-    await enviarEmailCadastro({
-      emailResponsavel: d.emailResponsavel,
-      nomeResponsavel: d.nomeResponsavel,
-      razaoSocial: d.razaoSocial,
-      protocolo: d.protocolo,
-      tipoServico: d.tipoServico,
-      servicoLabel: d.servicoLabel,
-      emailAcesso: d.emailAcesso,
-    });
-  } catch (e) {
+  const boasVindas = enviarEmailCadastro({
+    emailResponsavel: d.emailResponsavel,
+    nomeResponsavel: d.nomeResponsavel,
+    razaoSocial: d.razaoSocial,
+    protocolo: d.protocolo,
+    tipoServico: d.tipoServico,
+    servicoLabel: d.servicoLabel,
+    emailAcesso: d.emailAcesso,
+  }).catch((e) => {
     console.error("[cadastro] enviarEmailCadastro", e);
+  });
+
+  if (!d.aceitaNotificacoes) {
+    await boasVindas;
+    return;
   }
-  if (d.aceitaNotificacoes) {
-    const r = await enviarEmailNotificacao({
-      razaoSocial: d.razaoSocial,
-      documentoMasked: d.documentoMasked,
-      protocolo: d.protocolo,
-      tipoServico: d.tipoServico,
-      servicoLabel: d.servicoLabel,
-      emailResponsavel: d.emailResponsavel,
-    });
+
+  const notif = enviarEmailNotificacao({
+    razaoSocial: d.razaoSocial,
+    documentoMasked: d.documentoMasked,
+    protocolo: d.protocolo,
+    tipoServico: d.tipoServico,
+    servicoLabel: d.servicoLabel,
+    emailResponsavel: d.emailResponsavel,
+  }).then((r) => {
     if (r.success === false) console.warn("[cadastro] enviarEmailNotificacao", r.error);
-  }
+  });
+
+  await Promise.all([boasVindas, notif]);
 }

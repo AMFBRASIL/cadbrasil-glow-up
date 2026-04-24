@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import bcrypt from "bcryptjs";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
@@ -21,6 +22,8 @@ import {
 import { dispararEmailsPosCadastro } from "@/lib/email-api";
 
 export const dynamic = "force-dynamic";
+/** Permite concluir envio de e-mails após a resposta HTTP (Vercel + waitUntil). */
+export const maxDuration = 60;
 
 function docNormalizedExpr(column: string): string {
   return `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(${column}, '.', ''), '/', ''), '-', ''), ' ', ''), '_', '')`;
@@ -304,17 +307,19 @@ export async function POST(req: Request) {
 
     await insertTrackingPosCommit(pool, idCliente, idUsuario, body as Record<string, unknown>, userAgent);
 
-    void dispararEmailsPosCadastro({
-      emailResponsavel,
-      nomeResponsavel: data.nomeResponsavel.trim(),
-      razaoSocial: razaoSocialParaCliente(data),
-      documentoMasked: documentoClienteMasked(data),
-      emailAcesso,
-      protocolo,
-      tipoServico,
-      servicoLabel: data.servico,
-      aceitaNotificacoes: Boolean(data.aceitaNotificacoes),
-    }).catch((err) => console.error("[cadastro] dispararEmailsPosCadastro", err));
+    waitUntil(
+      dispararEmailsPosCadastro({
+        emailResponsavel,
+        nomeResponsavel: data.nomeResponsavel.trim(),
+        razaoSocial: razaoSocialParaCliente(data),
+        documentoMasked: documentoClienteMasked(data),
+        emailAcesso,
+        protocolo,
+        tipoServico,
+        servicoLabel: data.servico,
+        aceitaNotificacoes: Boolean(data.aceitaNotificacoes),
+      }).catch((err) => console.error("[cadastro] dispararEmailsPosCadastro", err))
+    );
 
     return NextResponse.json(
       {
