@@ -60,7 +60,7 @@ type WelcomeTemplateData = {
 function getPortalAccessUrl(): string {
   const url = process.env.PORTAL_URL?.trim() || process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (url) return url;
-  return "https://cadbrasil.com.br";
+  return "https://fornecedor.cadbrasil.com.br";
 }
 
 function renderPlaceholders(
