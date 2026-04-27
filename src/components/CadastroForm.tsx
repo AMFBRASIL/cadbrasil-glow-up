@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { cadastroSchema, type CadastroData, isValidCPF } from "@/lib/validations/cadastro";
@@ -26,6 +26,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 /* ---------- Masks ---------- */
@@ -50,6 +58,372 @@ const maskPhone = (v: string) => {
 
 const maskCEP = (v: string) =>
   v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+
+type CnpjLookupResponse = {
+  razao_social?: string;
+  nome_fantasia?: string;
+  inscricao_estadual?: string;
+  porte?: string;
+  cnae_fiscal_descricao?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  municipio?: string;
+  uf?: string;
+  ddd_telefone_1?: string;
+  email?: string;
+};
+
+type ExistingSupplier = {
+  tipo: "CPF" | "CNPJ";
+  documento: string;
+};
+
+const FORNECEDOR_PORTAL_URL = "https://fornecedor.cadbrasil.com.br";
+
+function LegalModal({
+  trigger,
+  title,
+  description,
+  children,
+}: {
+  trigger: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="text-primary font-medium hover:underline"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {trigger}
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5 text-sm leading-6 text-foreground/80 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-foreground [&_strong]:text-foreground">
+          {children}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ExistingSupplierModal({
+  open,
+  onOpenChange,
+  supplier,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  supplier: ExistingSupplier | null;
+}) {
+  if (!supplier) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl overflow-hidden p-0">
+        <div className="bg-gradient-soft px-6 pt-6 pb-5 border-b border-border">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-soft text-primary shadow-soft">
+            <KeyRound className="h-8 w-8" />
+          </div>
+          <DialogHeader className="text-center">
+            <DialogTitle className="text-2xl font-display">Fornecedor já cadastrado</DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              Encontramos um cadastro ativo para este {supplier.tipo}. Para continuar o atendimento, acesse a
+              plataforma do fornecedor com seu login e senha.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="space-y-5 px-6 pb-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              { title: "Acesse", text: "Entre na plataforma segura da CADBRASIL." },
+              { title: "Faça login", text: "Use o e-mail e senha cadastrados anteriormente." },
+              { title: "Continue", text: "Acompanhe ou atualize seu processo pelo painel." },
+            ].map((item, index) => (
+              <div key={item.title} className="rounded-2xl border border-border bg-card p-4 text-center">
+                <div className="mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary">
+                  {index + 1}
+                </div>
+                <p className="font-semibold text-foreground">{item.title}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.text}</p>
+              </div>
+            ))}
+          </div>
+
+          <a
+            href={FORNECEDOR_PORTAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-cta px-6 py-4 text-base font-bold text-primary-foreground shadow-glow transition-smooth hover:scale-[1.01] hover:shadow-elevated"
+          >
+            Acessar Plataforma Fornecedor
+            <ExternalLink className="h-5 w-5" />
+          </a>
+
+          <p className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-success" />
+            Caso não lembre a senha, utilize a opção de recuperação na tela de login.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ExistingSupplierCard({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div className="md:col-span-2 rounded-2xl border border-primary/20 bg-primary-soft/40 p-4 shadow-soft animate-fade-in">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-display text-base font-bold text-foreground">Cadastro já encontrado</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Este fornecedor já possui acesso. Continue pela plataforma usando login e senha.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-cta px-5 py-3 text-sm font-bold text-primary-foreground shadow-glow transition-smooth hover:scale-[1.01]"
+        >
+          Acessar Plataforma Fornecedor
+          <ExternalLink className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TermsOfUseContent() {
+  return (
+    <>
+      <section className="space-y-2">
+        <h3>Sobre a CADBRASIL</h3>
+        <p>
+          CADBRASIL é uma empresa privada, especialista em licitações públicas, dedicada a facilitar o acesso de
+          fornecedores ao mercado governamental. Não somos órgão público, nem temos qualquer vínculo com o governo.
+          Nosso objetivo é oferecer soluções inovadoras e seguras para empresas que desejam participar de licitações,
+          com total transparência e ética.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h3>Nossos Serviços</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Sistemas inteligentes de leitura de editais com Inteligência Artificial (IA), otimizando a análise de oportunidades.</li>
+          <li>Assessoria completa para cadastro no SICAF e outros sistemas de habilitação.</li>
+          <li>Todos os serviços são prestados de forma independente, sem qualquer relação com órgãos governamentais.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h3>Regras de Uso</h3>
+        <ol className="list-decimal space-y-2 pl-5">
+          <li>O usuário deve fornecer informações verdadeiras e atualizadas no momento do cadastro.</li>
+          <li>O acesso ao sistema é pessoal, intransferível e protegido por senha.</li>
+          <li>É proibido compartilhar dados de acesso com terceiros.</li>
+          <li>O uso indevido do sistema pode resultar em bloqueio ou exclusão do cadastro.</li>
+          <li>O usuário é responsável por manter a confidencialidade de suas credenciais.</li>
+        </ol>
+      </section>
+
+      <section className="space-y-2">
+        <h3>Proteção de Dados e LGPD</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Seus dados são tratados conforme a Lei Geral de Proteção de Dados (LGPD - Lei 13.709/2018).</li>
+          <li>As informações coletadas são utilizadas exclusivamente para fins de cadastro, contato e cumprimento de obrigações legais.</li>
+          <li>Não compartilhamos dados pessoais com terceiros sem consentimento explícito do usuário.</li>
+          <li>O usuário pode solicitar a exclusão ou atualização de seus dados a qualquer momento.</li>
+          <li>Adotamos medidas técnicas e administrativas para garantir a segurança e confidencialidade das informações.</li>
+        </ul>
+      </section>
+
+      <p className="text-xs text-muted-foreground">Última atualização: 01/07/2024</p>
+    </>
+  );
+}
+
+function PrivacyPolicyContent() {
+  return (
+    <>
+      <section className="space-y-2">
+        <h3>1. Introdução</h3>
+        <p>
+          A CADBRASIL, empresa especializada em serviços de licitações e cadastros para órgãos públicos, está
+          comprometida em proteger a privacidade e os dados pessoais de seus usuários. Esta Política de Privacidade
+          descreve como coletamos, utilizamos, armazenamos e protegemos suas informações pessoais, em conformidade com
+          a Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
+        </p>
+      </section>
+
+      <section className="space-y-3">
+        <h3>2. Dados Coletados</h3>
+        <div>
+          <strong>Dados da Empresa</strong>
+          <p>CNPJ, razão social, nome fantasia, CNAE, endereço completo, telefone, email.</p>
+        </div>
+        <div>
+          <strong>Dados do Representante</strong>
+          <p>Nome completo, CPF, cargo, telefone, email.</p>
+        </div>
+        <div>
+          <strong>Dados de Licitação</strong>
+          <p>Área de atuação, experiência em licitações, certificações.</p>
+        </div>
+        <div>
+          <strong>Dados de Acesso</strong>
+          <p>Email e senha para acesso ao sistema.</p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3>3. Finalidade do Tratamento</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Cadastro e gestão de fornecedores no sistema CADBRASIL.</li>
+          <li>Processamento de cadastros para SICAF e outros órgãos públicos.</li>
+          <li>Análise de editais e oportunidades de licitação.</li>
+          <li>Comunicação sobre serviços, atualizações e oportunidades.</li>
+          <li>Cumprimento de obrigações legais e regulamentares.</li>
+          <li>Melhoria dos nossos serviços e experiência do usuário.</li>
+          <li>Prevenção de fraudes e segurança do sistema.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h3>4. Base Legal</h3>
+        <div>
+          <strong>Execução de Contrato</strong>
+          <p>Para prestação dos serviços contratados.</p>
+        </div>
+        <div>
+          <strong>Interesse Legítimo</strong>
+          <p>Para melhorar nossos serviços e comunicação.</p>
+        </div>
+        <div>
+          <strong>Obrigação Legal</strong>
+          <p>Para cumprir determinações legais e regulamentares.</p>
+        </div>
+        <div>
+          <strong>Consentimento</strong>
+          <p>Para finalidades específicas quando solicitado.</p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3>5. Compartilhamento de Dados</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li><strong>Órgãos Públicos:</strong> Para cadastros em SICAF, Comprasnet e outros sistemas.</li>
+          <li><strong>Prestadores de Serviços:</strong> Empresas que nos auxiliam na prestação dos serviços.</li>
+          <li><strong>Autoridades Competentes:</strong> Quando exigido por lei ou determinação judicial.</li>
+        </ul>
+        <p>Não vendemos, alugamos ou comercializamos seus dados pessoais com terceiros para fins comerciais.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h3>6. Armazenamento e Segurança</h3>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Criptografia de dados.</li>
+          <li>Controle de acesso rigoroso.</li>
+          <li>Monitoramento contínuo.</li>
+          <li>Backup regular e seguro.</li>
+          <li>Treinamento da equipe.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h3>7. Retenção de Dados</h3>
+        <p>Mantemos seus dados pelo tempo necessário para:</p>
+        <ul className="list-disc space-y-2 pl-5">
+          <li>Prestação dos serviços contratados.</li>
+          <li>Cumprimento de obrigações legais.</li>
+          <li>Resolução de disputas.</li>
+          <li>Exercício de direitos em processos judiciais.</li>
+        </ul>
+      </section>
+
+      <section className="space-y-3">
+        <h3>8. Seus Direitos (LGPD)</h3>
+        <div>
+          <strong>Acesso</strong>
+          <p>Solicitar informações sobre seus dados.</p>
+        </div>
+        <div>
+          <strong>Correção</strong>
+          <p>Corrigir dados incorretos.</p>
+        </div>
+        <div>
+          <strong>Exclusão</strong>
+          <p>Solicitar exclusão de dados.</p>
+        </div>
+        <div>
+          <strong>Portabilidade</strong>
+          <p>Receber dados em formato estruturado.</p>
+        </div>
+        <div>
+          <strong>Revogação</strong>
+          <p>Revogar consentimento.</p>
+        </div>
+        <div>
+          <strong>Oposição</strong>
+          <p>Opor-se ao tratamento.</p>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3>9. Cookies e Tecnologias Similares</h3>
+        <p>
+          Utilizamos cookies para melhorar a experiência de navegação, analisar o uso do sistema, personalizar conteúdo
+          e garantir a segurança. Você pode gerenciar as configurações através do seu navegador.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h3>10. Transferências Internacionais</h3>
+        <p>
+          Seus dados podem ser transferidos para países que ofereçam grau de proteção adequado à LGPD ou mediante
+          garantias contratuais específicas.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h3>11. Alterações na Política</h3>
+        <p>
+          Esta Política pode ser atualizada periodicamente. Notificaremos sobre mudanças significativas através do
+          sistema ou por email.
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h3>12. Contato</h3>
+        <p>privacidade@cadbrasil.com.br</p>
+        <p>(11) 2122-0202</p>
+        <p>Rua Dr. Luis Migliano, 1986 - São Paulo/SP - CEP: 48152-000</p>
+        <p>Encarregado de Dados (DPO): dpo@cadbrasil.com.br</p>
+      </section>
+
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <p>Última atualização: 15/01/2025</p>
+        <p>Versão: 1.0</p>
+      </div>
+    </>
+  );
+}
 
 const STEPS = [
   { id: 0, label: "Tipo", icon: Sparkles },
@@ -93,6 +467,10 @@ export function CadastroForm() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjFetched, setCnpjFetched] = useState(false);
+  const [documentCheckLoading, setDocumentCheckLoading] = useState(false);
+  const [lastCheckedDocument, setLastCheckedDocument] = useState("");
+  const [existingSupplier, setExistingSupplier] = useState<ExistingSupplier | null>(null);
+  const [existingSupplierModalOpen, setExistingSupplierModalOpen] = useState(false);
 
   const form = useForm<CadastroData>({
     resolver: zodResolver(cadastroSchema),
@@ -127,14 +505,66 @@ export function CadastroForm() {
     5: ["senha", "confirmarSenha", "emailAcesso", "aceiteTermos", "aceiteContato"],
   };
 
-  /* ---------- CNPJ lookup (BrasilAPI / Receita Federal) ---------- */
-  const porteMap: Record<string, string> = {
-    "MEI": "MEI",
-    "ME": "ME",
-    "EPP": "EPP",
-    "DEMAIS": "MEDIA",
+  const resetExistingSupplierIfDocumentChanged = (documento: string) => {
+    if (lastCheckedDocument && lastCheckedDocument !== documento) {
+      setLastCheckedDocument("");
+    }
+    if (existingSupplier && existingSupplier.documento !== documento) {
+      setExistingSupplier(null);
+      setExistingSupplierModalOpen(false);
+    }
   };
 
+  const checkExistingSupplier = async (raw: string, tipo: ExistingSupplier["tipo"]) => {
+    const documento = raw.replace(/\D/g, "");
+    const expectedLength = tipo === "CNPJ" ? 14 : 11;
+
+    if (documento.length !== expectedLength) {
+      resetExistingSupplierIfDocumentChanged(documento);
+      return false;
+    }
+
+    if (tipo === "CPF" && !isValidCPF(raw)) return false;
+
+    if (lastCheckedDocument === documento) {
+      return existingSupplier?.documento === documento;
+    }
+
+    if (existingSupplier && existingSupplier.documento !== documento) {
+      setExistingSupplier(null);
+      setExistingSupplierModalOpen(false);
+    }
+
+    setDocumentCheckLoading(true);
+    try {
+      const res = await fetch(`/api/cadastro/documento?documento=${documento}`, { cache: "no-store" });
+      const json = (await res.json().catch(() => ({}))) as { exists?: boolean };
+
+      if (!res.ok) {
+        toast.error("Não foi possível verificar se o fornecedor já existe.");
+        return false;
+      }
+
+      setLastCheckedDocument(documento);
+
+      if (json.exists) {
+        const supplier = { tipo, documento };
+        setExistingSupplier(supplier);
+        setExistingSupplierModalOpen(true);
+        return true;
+      }
+
+      setExistingSupplier(null);
+      return false;
+    } catch {
+      toast.error("Não foi possível verificar se o fornecedor já existe.");
+      return false;
+    } finally {
+      setDocumentCheckLoading(false);
+    }
+  };
+
+  /* ---------- CNPJ lookup (CNPJ.ws / Receita Federal) ---------- */
   const clearCompanyFields = () => {
     const fields: Array<keyof CadastroData> = [
       "razaoSocial",
@@ -160,16 +590,17 @@ export function CadastroForm() {
     setCnpjLoading(true);
     setCnpjFetched(false);
     try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      const res = await fetch(`/api/cnpj/${cnpj}`, { cache: "no-store" });
       if (!res.ok) {
         clearCompanyFields();
         toast.info("CNPJ não localizado. Preencha os dados manualmente.");
         return;
       }
-      const d = await res.json();
+      const d = (await res.json()) as CnpjLookupResponse;
       setValue("razaoSocial", d.razao_social || "", { shouldValidate: true });
       setValue("nomeFantasia", d.nome_fantasia || "", { shouldValidate: true });
-      setValue("porte", porteMap[d.porte] || "MEDIA", { shouldValidate: true });
+      setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
+      setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
       setValue("segmento", d.cnae_fiscal_descricao || "", { shouldValidate: true });
       // endereço
       if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
@@ -192,6 +623,11 @@ export function CadastroForm() {
     } finally {
       setCnpjLoading(false);
     }
+  };
+
+  const handleCnpjCompleted = async (raw: string) => {
+    const exists = await checkExistingSupplier(raw, "CNPJ");
+    if (!exists) await lookupCNPJ(raw);
   };
 
   const lookupCEP = async (raw: string) => {
@@ -219,6 +655,11 @@ export function CadastroForm() {
   const next = async () => {
     if (step === 0 && !tipoPessoa) {
       toast.error("Selecione CPF ou CNPJ para continuar");
+      return;
+    }
+    if (step === 1 && existingSupplier) {
+      setExistingSupplierModalOpen(true);
+      toast.info("Fornecedor já cadastrado. Acesse a plataforma para continuar.");
       return;
     }
     const ok = await trigger(STEP_FIELDS[step]);
@@ -331,6 +772,9 @@ export function CadastroForm() {
             setStep(0);
             setCnpjFetched(false);
             setProtocolo("");
+            setExistingSupplier(null);
+            setExistingSupplierModalOpen(false);
+            setLastCheckedDocument("");
             form.reset();
           }}
           variant="ghost"
@@ -359,6 +803,12 @@ export function CadastroForm() {
       onSubmit={handleSubmit(onSubmit)}
       className="bg-card rounded-3xl shadow-elevated overflow-hidden border border-border/60"
     >
+      <ExistingSupplierModal
+        open={existingSupplierModalOpen}
+        onOpenChange={setExistingSupplierModalOpen}
+        supplier={existingSupplier}
+      />
+
       {/* Header + progress */}
       <div className="px-6 md:px-8 pt-7 pb-5 border-b border-border/60 bg-gradient-soft">
         <div className="flex items-center justify-between mb-4">
@@ -410,7 +860,12 @@ export function CadastroForm() {
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => setValue("tipoPessoa", opt.id, { shouldValidate: true })}
+                    onClick={() => {
+                      setValue("tipoPessoa", opt.id, { shouldValidate: true });
+                      setExistingSupplier(null);
+                      setExistingSupplierModalOpen(false);
+                      setLastCheckedDocument("");
+                    }}
                     className={cn(
                       "relative text-left p-5 rounded-2xl border-2 transition-smooth group",
                       active
@@ -459,7 +914,11 @@ export function CadastroForm() {
                 required
                 error={errors.cnpj?.message}
                 hint={
-                  cnpjLoading
+                  documentCheckLoading
+                    ? "Verificando se este fornecedor já existe..."
+                    : existingSupplier?.tipo === "CNPJ"
+                    ? "Fornecedor já cadastrado. Acesse a plataforma para continuar."
+                    : cnpjLoading
                     ? "Consultando Receita Federal..."
                     : cnpjFetched
                     ? "Dados preenchidos automaticamente. Confira e ajuste se necessário."
@@ -475,12 +934,14 @@ export function CadastroForm() {
                     value={values.cnpj}
                     onChange={(e) => {
                       const v = maskCNPJ(e.target.value);
+                      const digits = v.replace(/\D/g, "");
                       setValue("cnpj", v, { shouldValidate: true });
-                      if (v.replace(/\D/g, "").length === 14) lookupCNPJ(v);
+                      if (digits.length < 14) resetExistingSupplierIfDocumentChanged(digits);
+                      if (digits.length === 14) void handleCnpjCompleted(v);
                     }}
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {cnpjLoading ? (
+                    {documentCheckLoading || cnpjLoading ? (
                       <Loader2 className="w-4 h-4 text-primary animate-spin" />
                     ) : cnpjFetched ? (
                       <CheckCircle2 className="w-4 h-4 text-success" />
@@ -491,6 +952,10 @@ export function CadastroForm() {
                 </div>
               </Field>
             </div>
+
+            {existingSupplier?.tipo === "CNPJ" && (
+              <ExistingSupplierCard onOpen={() => setExistingSupplierModalOpen(true)} />
+            )}
 
             {(cnpjFetched || values.razaoSocial) && (
               <>
@@ -533,21 +998,44 @@ export function CadastroForm() {
               label="CPF"
               required
               error={(values.cpf?.replace(/\D/g, "").length === 11 && !isValidCPF(values.cpf)) ? "CPF inválido" : errors.cpf?.message}
-              hint={values.cpf?.replace(/\D/g, "").length === 11 && isValidCPF(values.cpf) ? "CPF válido" : undefined}
+              hint={
+                documentCheckLoading
+                  ? "Verificando se este fornecedor já existe..."
+                  : existingSupplier?.tipo === "CPF"
+                  ? "Fornecedor já cadastrado. Acesse a plataforma para continuar."
+                  : values.cpf?.replace(/\D/g, "").length === 11 && isValidCPF(values.cpf)
+                  ? "CPF válido"
+                  : undefined
+              }
             >
-              <input
-                className={inputClass}
-                placeholder="000.000.000-00"
-                inputMode="numeric"
-                autoFocus
-                value={values.cpf}
-                onChange={(e) => {
-                  const masked = maskCPF(e.target.value);
-                  setValue("cpf", masked, { shouldValidate: true });
-                  if (masked.replace(/\D/g, "").length === 11) form.trigger("cpf");
-                }}
-              />
+              <div className="relative">
+                <input
+                  className={cn(inputClass, "pr-11")}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  autoFocus
+                  value={values.cpf}
+                  onChange={(e) => {
+                    const masked = maskCPF(e.target.value);
+                    const digits = masked.replace(/\D/g, "");
+                    setValue("cpf", masked, { shouldValidate: true });
+                    if (digits.length < 11) resetExistingSupplierIfDocumentChanged(digits);
+                    if (digits.length === 11) {
+                      void form.trigger("cpf");
+                      void checkExistingSupplier(masked, "CPF");
+                    }
+                  }}
+                />
+                {documentCheckLoading && (
+                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
+                )}
+              </div>
             </Field>
+            {existingSupplier?.tipo === "CPF" && (
+              <div className="md:col-span-2">
+                <ExistingSupplierCard onOpen={() => setExistingSupplierModalOpen(true)} />
+              </div>
+            )}
             <Field label="Nome completo" required error={errors.nomeResponsavel?.message}>
               <input className={inputClass} placeholder="Seu nome" {...register("nomeResponsavel")} />
             </Field>
@@ -670,10 +1158,9 @@ export function CadastroForm() {
             <Field label="Serviço de interesse" required error={errors.servico?.message}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {[
-                  "Cadastro no SICAF",
-                  "Atualização cadastral",
-                  "Consultoria em licitações",
-                  "Suporte documental",
+                  "Novo Cadastro SICAF",
+                  "Atualizacao SICAF",
+                  "Suporte Documental",
                   "Outro",
                 ].map((s) => {
                   const active = values.servico === s;
@@ -700,7 +1187,7 @@ export function CadastroForm() {
             </Field>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Possui cadastro no SICAF atualmente?" required error={errors.possuiSicaf?.message}>
+              <Field label="Possui cadastro no SICAF ?" required error={errors.possuiSicaf?.message}>
                 <select className={inputClass} {...register("possuiSicaf")}>
                   <option value="">Selecione...</option>
                   <option value="sim">Sim, está ativo</option>
@@ -785,7 +1272,7 @@ export function CadastroForm() {
                 </span>
               </label>
 
-              <label className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary-glow/60 cursor-pointer transition-smooth">
+              <div className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary-glow/60 transition-smooth">
                 <input
                   type="checkbox"
                   className="mt-0.5 w-4 h-4 accent-primary"
@@ -793,10 +1280,25 @@ export function CadastroForm() {
                   onChange={(e) => setValue("aceiteTermos", e.target.checked as true, { shouldValidate: true })}
                 />
                 <span className="text-sm text-foreground/80">
-                  Li e aceito os <a href="#" className="text-primary font-medium hover:underline">Termos de Uso</a> e a{" "}
-                  <a href="#" className="text-primary font-medium hover:underline">Política de Privacidade</a>.
+                  Li e aceito os{" "}
+                  <LegalModal
+                    trigger="Termos de Uso"
+                    title="Termos de Uso"
+                    description="CADBRASIL - Assessoria em Licitações"
+                  >
+                    <TermsOfUseContent />
+                  </LegalModal>{" "}
+                  e a{" "}
+                  <LegalModal
+                    trigger="Política de Privacidade"
+                    title="Política de Privacidade"
+                    description="CADBRASIL - Em conformidade com a LGPD"
+                  >
+                    <PrivacyPolicyContent />
+                  </LegalModal>
+                  .
                 </span>
-              </label>
+              </div>
               {errors.aceiteTermos && (
                 <p className="text-xs text-destructive flex items-center gap-1 pl-1">
                   <AlertCircle className="w-3 h-3" /> {errors.aceiteTermos.message as string}
