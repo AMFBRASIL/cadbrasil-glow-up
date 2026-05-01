@@ -82,8 +82,11 @@ export type UtmPayload = {
   utm_content?: string | null;
   gclid?: string | null;
   gbraid?: string | null;
+  wbraid?: string | null;
   gad_source?: string | null;
   gad_campaignid?: string | null;
+  msclkid?: string | null;
+  fbclid?: string | null;
   landing_page?: string | null;
   referrer?: string | null;
 };
@@ -101,8 +104,11 @@ export function extrairUtmDoBody(body: Record<string, unknown>): UtmPayload {
     utm_content: s("utm_content"),
     gclid: s("gclid"),
     gbraid: s("gbraid"),
+    wbraid: s("wbraid"),
     gad_source: s("gad_source"),
     gad_campaignid: s("gad_campaignid"),
+    msclkid: s("msclkid"),
+    fbclid: s("fbclid"),
     landing_page: s("landing_page"),
     referrer: s("referrer"),
   };

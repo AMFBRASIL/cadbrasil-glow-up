@@ -25,6 +25,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getTrackingParamsForPayload } from "@/lib/tracking";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -674,10 +675,11 @@ export function CadastroForm() {
   const onSubmit = async (data: CadastroData) => {
     setSubmitting(true);
     try {
+      const trackingParams = getTrackingParamsForPayload();
       const res = await fetch("/api/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, ...trackingParams }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;

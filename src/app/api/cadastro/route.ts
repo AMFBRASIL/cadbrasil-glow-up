@@ -71,9 +71,9 @@ async function insertTrackingPosCommit(
   const sql = `INSERT INTO tracking_sessoes (
     session_id, cliente_id, usuario_id,
     utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-    gclid, gbraid, gad_source, landing_page, referrer,
+    gclid, gbraid, wbraid, gad_source, gad_campaignid, fbclid, msclkid, landing_page, referrer,
     user_agent, converted, conversion_type, conversion_at, funnel_step, last_activity_at
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,'signup',NOW(),'signup',NOW())`;
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,'signup',NOW(),'signup',NOW())`;
   const params = [
     sessionId,
     clienteId,
@@ -85,7 +85,11 @@ async function insertTrackingPosCommit(
     utm.utm_content,
     utm.gclid,
     utm.gbraid,
+    utm.wbraid,
     utm.gad_source,
+    utm.gad_campaignid,
+    utm.fbclid,
+    utm.msclkid,
     utm.landing_page,
     utm.referrer,
     userAgent,
