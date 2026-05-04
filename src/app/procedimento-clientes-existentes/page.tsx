@@ -27,6 +27,13 @@ const steps = [
     ],
     ctaLabel: "Acessar plataforma nova",
     ctaHref: "https://fornecedor.cadbrasil.com.br",
+    previewImages: [
+      {
+        src: "/procedimento-clientes-etapa-1-1.png",
+        alt: "Tela de login da plataforma CadBrasil fornecedor",
+        modalTitle: "Acessar a plataforma nova — login",
+      },
+    ],
   },
   {
     icon: Wrench,
@@ -39,6 +46,18 @@ const steps = [
     ctaLabel: "Instalar Assistente CADBRASIL",
     ctaHref:
       "https://chromewebstore.google.com/detail/cadbrasil-%E2%80%94-assistente-si/cdhhdgcabgbjdambnhkmdibhnmfkaicd",
+    previewImages: [
+      {
+        src: "/procedimento-clientes-etapa-2-1.png",
+        alt: "Lista de credenciamentos SICAF com destaque para o botao + Detalhes",
+        modalTitle: "Acessando Meu SICAF",
+      },
+      {
+        src: "/procedimento-clientes-etapa-2-2.png",
+        alt: "Painel lateral com detalhes da empresa e opcoes do processo",
+        modalTitle: "Acessando empresa — + Detalhes",
+      },
+    ],
   },
   {
     icon: FolderOpen,
@@ -50,6 +69,18 @@ const steps = [
     ],
     ctaLabel: "Abrir plataforma do fornecedor",
     ctaHref: "https://fornecedor.cadbrasil.com.br",
+    previewImages: [
+      {
+        src: "/procedimento-clientes-etapa-3-1.png",
+        alt: "Painel da empresa com botao Documentos e Certidoes",
+        modalTitle: "Documentos — acessar pelo painel",
+      },
+      {
+        src: "/procedimento-clientes-etapa-3-2.png",
+        alt: "Modal Documentos e Certidoes com lista para inserir arquivos",
+        modalTitle: "Documentos e Certidoes — enviar arquivos",
+      },
+    ],
   },
   {
     icon: Bot,
