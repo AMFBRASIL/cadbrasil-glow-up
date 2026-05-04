@@ -22,14 +22,14 @@ const steps = [
     icon: UserPlus,
     title: "1. Realizar o Cadastro",
     points: [
-      "Acesse o site oficial da CADBRASIL: https://cadbrasil-glow-up.vercel.app/",
+      "Acesse o site oficial da CADBRASIL: https://cadastro.cadbrasil.com.br",
       'Clique em "Cadastro".',
       "Preencha seus dados corretamente (CNPJ/CPF, e-mail e telefone).",
       "Finalize o cadastro.",
     ],
     tip: "Dica: use um e-mail valido, pois sera seu principal canal de acesso e comunicacao.",
     ctaLabel: "Acessar site de cadastro",
-    ctaHref: "https://cadbrasil-glow-up.vercel.app/",
+    ctaHref: "https://cadastro.cadbrasil.com.br",
     previewImages: [
       {
         src: "/procedimento-etapa-1.png",
@@ -41,10 +41,12 @@ const steps = [
     icon: Lock,
     title: "2. Acessar o Portal do Fornecedor",
     points: [
-      "Apos o cadastro, acesse o Portal do Fornecedor.",
+      "Apos o cadastro em https://cadastro.cadbrasil.com.br, acesse o Portal do Fornecedor.",
       "Faca login com seu usuario (e-mail) e senha cadastrada.",
       'Aqui comeca o "painel de controle" da sua jornada dentro da CADBRASIL.',
     ],
+    ctaLabel: "Acessar portal do fornecedor",
+    ctaHref: "https://fornecedor.cadbrasil.com.br",
     previewImages: [
       {
         src: "/procedimento-etapa-2-1.png",
@@ -150,8 +152,7 @@ export default function ProcedimentoSicafPage() {
 
             <div className="space-y-4">
               <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl leading-[1.05]">
-                Guia passo a passo para novos clientes no{" "}
-                <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">SICAF</span>
+                Guia passo a passo para credenciamento no SICAF
               </h1>
               <p className="text-lg text-muted-foreground text-balance max-w-3xl leading-relaxed">
                 Siga este fluxo para concluir seu processo com clareza, rapidez e suporte da equipe CADBRASIL.
