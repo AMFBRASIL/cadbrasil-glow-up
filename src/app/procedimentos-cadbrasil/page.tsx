@@ -309,6 +309,11 @@ const stepsClienteExistente: Step[] = [
         alt: "Botão de acesso ao SICAF no portal",
         modalTitle: "Acessando SICAF pelo botão",
       },
+      {
+        src: "/procedimentos-cadbrasil-04b.png",
+        alt: "Painel da empresa com destaque para o botão ACESSAR SICAF",
+        modalTitle: "Clique em ACESSAR SICAF",
+      },
     ],
   },
   {
@@ -364,6 +369,7 @@ const stepsClienteExistente: Step[] = [
 
 export default function ProcedimentosCadbrasilPage() {
   const [flowMode, setFlowMode] = useState<FlowMode>("novo");
+  const [flowSelected, setFlowSelected] = useState(false);
   const [copiedPrompt, setCopiedPrompt] = useState<string>("");
   const steps = useMemo(() => (flowMode === "novo" ? stepsNovoCadastro : stepsClienteExistente), [flowMode]);
   const quickFlow =
@@ -430,31 +436,48 @@ export default function ProcedimentosCadbrasilPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
-              onClick={() => setFlowMode("novo")}
-              className={`rounded-2xl border p-4 text-left transition-smooth ${
-                flowMode === "novo"
-                  ? "border-primary/40 bg-primary-soft shadow-soft"
-                  : "border-border bg-card hover:border-primary/25"
+              onClick={() => {
+                setFlowMode("novo");
+                setFlowSelected(true);
+              }}
+              className={`rounded-3xl border p-6 md:p-8 text-left transition-smooth min-h-[170px] ${
+                flowSelected && flowMode === "novo"
+                  ? "border-primary/60 bg-gradient-to-br from-primary/20 via-primary-soft to-primary/10 shadow-card ring-2 ring-primary/25"
+                  : "border-primary/35 bg-gradient-to-br from-primary/10 via-primary-soft/70 to-primary/5 hover:border-primary/60 hover:shadow-card"
               }`}
             >
-              <p className="text-sm font-semibold text-foreground">Não tenho cadastro</p>
-              <p className="mt-1 text-xs text-muted-foreground">Fluxo completo: cadastro inicial, portal, SICAF, instalação e uso do assistente.</p>
+              <p className="text-lg md:text-xl font-bold text-foreground">Não sou cliente</p>
+              <p className="mt-2 text-sm text-foreground/80 leading-relaxed">
+                Fluxo completo: cadastro inicial, portal, SICAF, instalação e uso do assistente.
+              </p>
+              <span className="mt-4 inline-flex rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
+                Clique para iniciar
+              </span>
             </button>
             <button
               type="button"
-              onClick={() => setFlowMode("existente")}
-              className={`rounded-2xl border p-4 text-left transition-smooth ${
-                flowMode === "existente"
-                  ? "border-primary/40 bg-primary-soft shadow-soft"
-                  : "border-border bg-card hover:border-primary/25"
+              onClick={() => {
+                setFlowMode("existente");
+                setFlowSelected(true);
+              }}
+              className={`rounded-3xl border p-6 md:p-8 text-left transition-smooth min-h-[170px] ${
+                flowSelected && flowMode === "existente"
+                  ? "border-primary/60 bg-gradient-to-br from-primary/20 via-primary-soft to-primary/10 shadow-card ring-2 ring-primary/25"
+                  : "border-primary/35 bg-gradient-to-br from-primary/10 via-primary-soft/70 to-primary/5 hover:border-primary/60 hover:shadow-card"
               }`}
             >
-              <p className="text-sm font-semibold text-foreground">Já sou cliente da base</p>
-              <p className="mt-1 text-xs text-muted-foreground">Fluxo direto: portal, acesso ao SICAF, instalação do assistente e comandos finais.</p>
+              <p className="text-lg md:text-xl font-bold text-foreground">Sou cliente</p>
+              <p className="mt-2 text-sm text-foreground/80 leading-relaxed">
+                Fluxo direto: portal, acesso ao SICAF, instalação do assistente e comandos finais.
+              </p>
+              <span className="mt-4 inline-flex rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
+                Clique para iniciar
+              </span>
             </button>
           </div>
         </section>
 
+        {flowSelected ? (
         <section className="container max-w-7xl pb-12 md:pb-16">
           <div className="grid gap-4">
             {steps.map((step) => (
@@ -601,7 +624,20 @@ export default function ProcedimentosCadbrasilPage() {
             ))}
           </div>
         </section>
+        ) : (
+          <section className="container max-w-7xl pb-12 md:pb-16">
+            <div className="rounded-2xl border border-dashed border-primary/35 bg-primary-soft/30 px-6 py-8 text-center">
+              <p className="text-base font-semibold text-foreground">
+                Escolha acima se você é cliente ou ainda vai se cadastrar.
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Após selecionar uma opção, mostramos o passo a passo completo logo abaixo.
+              </p>
+            </div>
+          </section>
+        )}
 
+        {flowSelected ? (
         <section className="bg-gradient-hero relative overflow-hidden">
           <div className="absolute inset-0 bg-grid opacity-20" />
           <div className="container max-w-7xl py-14 md:py-16 relative">
@@ -623,6 +659,7 @@ export default function ProcedimentosCadbrasilPage() {
             </div>
           </div>
         </section>
+        ) : null}
       </main>
 
       <footer className="border-t border-border/60 bg-card">
