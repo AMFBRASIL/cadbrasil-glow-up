@@ -1,8 +1,7 @@
-const WHATSAPP_NUMBER = "551121220202";
-const WHATSAPP_MESSAGE = "Olá! Gostaria de falar com o atendimento da CADBRASIL.";
+import { montarWhatsAppHref, WHATSAPP_MENSAGEM_PADRAO } from "@/lib/cadbrasil-atendimento";
 
 export function WhatsAppFloatButton() {
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
+  const href = montarWhatsAppHref(WHATSAPP_MENSAGEM_PADRAO);
 
   return (
     <a

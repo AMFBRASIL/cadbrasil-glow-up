@@ -6,9 +6,12 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Mail,
+  MessageCircle,
   QrCode,
   Receipt,
   ShieldCheck,
+  Ticket,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -19,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { montarWhatsAppHref } from "@/lib/cadbrasil-atendimento";
 import { cn } from "@/lib/utils";
 
 export type PagamentoTaxaDados = {
@@ -73,6 +77,17 @@ function valorHintLabel(): string | undefined {
   const cents = Number(raw);
   if (!Number.isFinite(cents) || cents < 1) return undefined;
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100);
+}
+
+function portalFornecedorUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_PORTAL_URL?.trim();
+  if (raw && raw.length > 0) return raw.replace(/\/$/, "");
+  return "https://fornecedor.cadbrasil.com.br";
+}
+
+function whatsAppPagamentoHref(protocolo: string): string {
+  const texto = `Olá! Meu protocolo é ${protocolo}. Preciso de ajuda com o pagamento da taxa da licença CADBRASIL.`;
+  return montarWhatsAppHref(texto);
 }
 
 export function PagamentoTaxaDialog({ open, onOpenChange, dados }: Props) {
@@ -162,14 +177,14 @@ export function PagamentoTaxaDialog({ open, onOpenChange, dados }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">
             {view === "menu" ? "Pagamento da taxa" : view.includes("boleto") ? "Boleto bancário" : "PIX"}
           </DialogTitle>
           <DialogDescription className="text-left text-sm leading-relaxed">
             {view === "menu"
-              ? "Escolha como deseja pagar a taxa da licença via Efí (Gerencianet). A cobrança é gerada para o protocolo do seu cadastro."
+              ? "Taxa anual única da licença CADBRASIL na plataforma: você escolhe Boleto ou PIX e a cobrança é criada na hora para o seu protocolo."
               : null}
           </DialogDescription>
         </DialogHeader>
@@ -185,16 +200,69 @@ export function PagamentoTaxaDialog({ open, onOpenChange, dados }: Props) {
 
             {view === "menu" && (
               <>
-                {valorHint ? (
-                  <p className="text-sm text-muted-foreground">
-                    Valor da cobrança (referência):{" "}
-                    <strong className="text-foreground">{valorHint}</strong>
+                <div className="rounded-xl border border-primary/20 bg-primary-soft/45 p-4 space-y-3 text-sm text-muted-foreground leading-relaxed">
+                  <div>
+                    <p className="font-semibold text-foreground">Taxa anual em valor único</p>
+                    <p className="mt-1.5">
+                      {valorHint ? (
+                        <>
+                          O valor de referência <strong className="text-foreground">{valorHint}</strong> corresponde à{" "}
+                          <strong className="text-foreground">taxa anual única</strong> da sua licença na CADBRASIL (uma cobrança por período anual,
+                          conforme contrato e regras da plataforma).
+                        </>
+                      ) : (
+                        <>
+                          Trata-se da <strong className="text-foreground">taxa anual única</strong> da licença. O valor exato será exibido ao gerar o
+                          boleto ou o PIX abaixo.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <p>
+                    A <strong className="text-foreground">geração do pagamento é imediata</strong>: ao escolher Boleto ou PIX, o sistema produz na hora
+                    linha digitável, PDF ou código PIX para você quitar e seguir com documentação e atendimento no portal.
                   </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    O valor definitivo aparece ao gerar o boleto ou o PIX.
-                  </p>
-                )}
+                  <div className="rounded-lg border border-border/80 bg-card/80 px-3 py-3 space-y-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Suporte personalizado</p>
+                    <ul className="space-y-2.5 text-xs leading-snug">
+                      <li className="flex gap-2.5">
+                        <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
+                        <span>
+                          <a
+                            href={whatsAppPagamentoHref(dados.protocolo)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            WhatsApp
+                          </a>
+                          {" "}com seu protocolo já na mensagem para um atendimento direto.
+                        </span>
+                      </li>
+                      <li className="flex gap-2.5">
+                        <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                        <span>
+                          Contato por <strong className="text-foreground">e-mail</strong> pela equipe (use o e-mail do seu cadastro e nossos retornos oficiais).
+                        </span>
+                      </li>
+                      <li className="flex gap-2.5">
+                        <Ticket className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                        <span>
+                          Abertura de <strong className="text-foreground">ticket</strong> no{" "}
+                          <a
+                            href={portalFornecedorUrl()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            portal do fornecedor
+                          </a>
+                          {" "}após o login, em Tickets/Suporte.
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
@@ -232,9 +300,9 @@ export function PagamentoTaxaDialog({ open, onOpenChange, dados }: Props) {
                   </button>
                 </div>
 
-                <p className="flex items-start gap-2 text-[11px] text-muted-foreground">
+                <p className="flex items-start gap-2 text-[11px] text-muted-foreground leading-relaxed">
                   <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                  Pagamento processado pela Efí (Gerencianet). O protocolo é validado na base antes de gerar a cobrança.
+                  Cobrança gerada com segurança pela Efí (Gerencianet). Seu protocolo é conferido antes de emitir boleto ou PIX.
                 </p>
               </>
             )}
