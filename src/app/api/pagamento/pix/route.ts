@@ -1,10 +1,31 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { pagamentoBodySchema } from "@/lib/validations/pagamento";
-import { assertProtocoloCadastro } from "@/lib/pagamento-protocolo";
-import { buildPixDevedor, centsToBRLString, getEfiPay, getPixChave, getValorCents } from "@/lib/efipay";
+import {
+  dadosPagamentoParaInsert,
+  ensureTaxaCadastroPortal,
+  insertPagamentoGerencianetAguardando,
+  marcarPagamentoGerencianetErro,
+  marcarPagamentoGerencianetGeradoPix,
+  resolveClienteSicafPorProtocolo,
+  resolveValorCobrancaCentavos,
+} from "@/lib/pagamento-registro";
+import { buildPixDevedor, centsToBRLString, getEfiPay, getPixChave } from "@/lib/efipay";
 
 export const dynamic = "force-dynamic";
+
+function extractPixLocId(cob: unknown): number | null {
+  if (!cob || typeof cob !== "object") return null;
+  const loc = (cob as Record<string, unknown>).loc;
+  if (!loc || typeof loc !== "object") return null;
+  const id = (loc as Record<string, unknown>).id;
+  if (typeof id === "number" && Number.isFinite(id)) return id;
+  if (typeof id === "string") {
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
 
 function parseEfiError(e: unknown): string {
   if (e && typeof e === "object") {
@@ -36,21 +57,49 @@ export async function POST(req: Request) {
 
   const data = parsed.data;
 
+  let clienteSnapshot:
+    | { clienteId: number; sicafId: number; taxaId: number; pagamentoId: number; valorCentavos: number }
+    | undefined;
+
   try {
-    await assertProtocoloCadastro(data.protocolo);
-  } catch (err) {
-    const code = err && typeof err === "object" && "code" in err ? (err as { code?: string }).code : "";
-    if (code === "PROTOCOLO_NAO_ENCONTRADO") {
+    const valorCentavos = await resolveValorCobrancaCentavos();
+    const resolved = await resolveClienteSicafPorProtocolo(data.protocolo);
+    if (!resolved) {
       return NextResponse.json(
         { success: false, error: "Protocolo não encontrado. Conclua o cadastro antes de pagar." },
         { status: 404 }
       );
     }
-    console.error("[pagamento/pix] DB", err);
+    const snapForm = dadosPagamentoParaInsert(data);
+    const taxaId = await ensureTaxaCadastroPortal({
+      sicafId: resolved.sicafId,
+      clienteId: resolved.clienteId,
+      protocolo: data.protocolo,
+      valorCentavos,
+    });
+    const pagamentoId = await insertPagamentoGerencianetAguardando({
+      clienteId: resolved.clienteId,
+      taxaId,
+      tipo: "pix",
+      valorCentavos,
+      protocolo: data.protocolo,
+      descricao: `Licença CADBRASIL / SICAF — ${data.protocolo}`,
+      dataVencimento: null,
+      clienteNome: snapForm.clienteNome,
+      clienteDocumento: snapForm.clienteDocumento,
+      clienteEmail: snapForm.clienteEmail,
+    });
+    clienteSnapshot = { clienteId: resolved.clienteId, sicafId: resolved.sicafId, taxaId, pagamentoId, valorCentavos };
+  } catch (err) {
+    console.error("[pagamento/pix] DB preparação", err);
     return NextResponse.json({ success: false, error: "Serviço temporariamente indisponível." }, { status: 503 });
   }
 
-  const valorCents = getValorCents();
+  if (!clienteSnapshot) {
+    return NextResponse.json({ success: false, error: "Serviço temporariamente indisponível." }, { status: 503 });
+  }
+
+  const valorCents = clienteSnapshot.valorCentavos;
   const valorOriginal = centsToBRLString(valorCents);
 
   const pixExpiracao = Math.min(
@@ -77,10 +126,25 @@ export async function POST(req: Request) {
 
     const pixCopiaECola = cob.pixCopiaECola;
     if (!pixCopiaECola) {
+      await marcarPagamentoGerencianetErro(clienteSnapshot.pagamentoId, "PIX gerado sem código copia e cola.");
       return NextResponse.json({ success: false, error: "PIX gerado sem código copia e cola." }, { status: 502 });
     }
 
     const qr_code_base64 = await QRCode.toDataURL(pixCopiaECola, { margin: 2, width: 280 });
+
+    try {
+      await marcarPagamentoGerencianetGeradoPix({
+        pagamentoId: clienteSnapshot.pagamentoId,
+        taxaId: clienteSnapshot.taxaId,
+        txid: typeof cob.txid === "string" ? cob.txid : null,
+        locId: extractPixLocId(cob),
+        pixCopiaECola,
+        qrBase64: qr_code_base64,
+        gnResponse: cob,
+      });
+    } catch (persistErr) {
+      console.error("[pagamento/pix] persistência pós-geração", persistErr);
+    }
 
     return NextResponse.json({
       success: true,
@@ -91,6 +155,11 @@ export async function POST(req: Request) {
       expiracao_segundos: cob.calendario?.expiracao ?? pixExpiracao,
     });
   } catch (e) {
+    try {
+      await marcarPagamentoGerencianetErro(clienteSnapshot.pagamentoId, parseEfiError(e));
+    } catch {
+      /* ignore */
+    }
     const code = e && typeof e === "object" && "code" in e ? String((e as { code?: string }).code) : "";
     if (code === "EFI_CONFIG_INCOMPLETA" || code === "EFI_PIX_CHAVE_INDEFINIDA") {
       return NextResponse.json(

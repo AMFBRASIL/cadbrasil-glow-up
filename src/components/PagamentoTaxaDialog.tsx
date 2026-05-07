@@ -189,15 +189,10 @@ export function PagamentoTaxaDialog({ open, onOpenChange, dados }: Props) {
                   <p className="text-sm text-muted-foreground">
                     Valor da cobrança (referência):{" "}
                     <strong className="text-foreground">{valorHint}</strong>
-                    <span className="block text-[11px] mt-1">
-                      Defina <code className="text-xs">EFI_COBRANCA_VALOR_CENTS</code> no servidor e, para exibir aqui,{" "}
-                      <code className="text-xs">NEXT_PUBLIC_COBRANCA_VALOR_CENTS</code> com o mesmo valor.
-                    </span>
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    O valor é definido no servidor (<code>EFI_COBRANCA_VALOR_CENTS</code>). Opcionalmente exponha o mesmo valor em{" "}
-                    <code>NEXT_PUBLIC_COBRANCA_VALOR_CENTS</code> para mostrar ao cliente antes de gerar a cobrança.
+                    O valor definitivo aparece ao gerar o boleto ou o PIX.
                   </p>
                 )}
 
