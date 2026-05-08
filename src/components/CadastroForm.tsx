@@ -1196,7 +1196,7 @@ export function CadastroForm() {
             </div>
             <div className="md:col-span-3">
               <Field label="Complemento" error={errors.complemento?.message}>
-                <input className={inputClass} placeholder="Sala, andar..." {...register("complemento")} />
+                <input className={inputClass} placeholder="Sala, andar..." maxLength={60} {...register("complemento")} />
               </Field>
             </div>
             <div className="md:col-span-3">
