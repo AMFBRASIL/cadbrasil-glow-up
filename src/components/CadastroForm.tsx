@@ -491,7 +491,7 @@ export function CadastroForm() {
       porte: "", segmento: "",
       nomeResponsavel: "", cpf: "", cargo: "", telefone: "", email: "",
       cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
-      servico: "", possuiSicaf: "", prioritario: "", observacoes: "",
+      servico: "Novo Cadastro SICAF", possuiSicaf: "", prioritario: "", observacoes: "",
       senha: "", confirmarSenha: "", emailAcesso: "", aceitaNotificacoes: false,
       aceiteTermos: undefined as unknown as true,
       aceiteContato: undefined as unknown as true,
