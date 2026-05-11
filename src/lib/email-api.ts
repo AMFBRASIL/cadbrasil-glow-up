@@ -79,19 +79,19 @@ function renderPlaceholders(
   });
 }
 
-async function getWelcomeTemplateFromDb(): Promise<EmailTemplateRow | null> {
+async function getTemplateFromDb(templateId: number): Promise<EmailTemplateRow | null> {
   try {
     const pool = getPool();
     const [rows] = await pool.query<EmailTemplateRow[]>(
       "SELECT id, nome, assunto, corpo_html, ativo FROM templates_email WHERE id = ? LIMIT 1",
-      [1]
+      [templateId]
     );
     if (!rows.length) return null;
     const row = rows[0];
     if (!row.ativo || !row.corpo_html) return null;
     return row;
   } catch (e) {
-    console.warn("[email-api] Falha ao carregar template id=1 (usando fallback):", e);
+    console.warn(`[email-api] Falha ao carregar template id=${templateId} (usando fallback):`, e);
     return null;
   }
 }
@@ -206,7 +206,7 @@ export async function enviarEmailCadastro(d: {
     protocolo: d.protocolo,
     servico: d.servicoLabel || d.tipoServico,
   };
-  const dbTemplate = await getWelcomeTemplateFromDb();
+  const dbTemplate = await getTemplateFromDb(1);
   const assunto = dbTemplate?.assunto
     ? renderPlaceholders(dbTemplate.assunto, vars, { escapeValues: false })
     : assuntoBoasVindas();
@@ -226,6 +226,120 @@ export async function enviarEmailCadastro(d: {
   };
   const result = await postSendCron(payload);
   console.log("[email-api] Boas-vindas enviado:", d.emailResponsavel, result);
+}
+
+/* ─── Licença ativada (template id=23) ─── */
+
+type LicencaAtivadaData = {
+  emailResponsavel: string;
+  nomeResponsavel: string;
+  razaoSocial: string;
+  documentoMasked: string;
+  protocolo: string;
+  tipoServico: string;
+  servicoLabel: string;
+  emailAcesso: string;
+  plano: string;
+  dataInicio: string;
+  dataVencimento: string;
+};
+
+function getLicencaAtivadaFallbackHtml(d: LicencaAtivadaData): string {
+  const nome = escapeHtml(d.nomeResponsavel);
+  const empresa = escapeHtml(d.razaoSocial);
+  const proto = escapeHtml(d.protocolo);
+  const plano = escapeHtml(d.plano);
+  const inicio = escapeHtml(d.dataInicio);
+  const vencimento = escapeHtml(d.dataVencimento);
+  const login = escapeHtml(d.emailAcesso);
+  const serv = escapeHtml(d.servicoLabel || d.tipoServico);
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f0f4f8;padding:24px;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(30,64,175,.12);">
+    <tr><td style="background:linear-gradient(135deg,#0f6b2d,#22c55e);padding:28px 24px;color:#fff;">
+      <h1 style="margin:0;font-size:20px;">CADBRASIL</h1>
+      <p style="margin:8px 0 0;font-size:14px;opacity:.9;">Licença ativada com sucesso</p>
+    </td></tr>
+    <tr><td style="padding:28px 24px;color:#334155;line-height:1.6;font-size:15px;">
+      <p>Olá, <strong>${nome}</strong>,</p>
+      <p>Seu contrato de licença foi aceito e já está <strong style="color:#16a34a;">ativo</strong> para <strong>${empresa}</strong>.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;width:40%;">Protocolo</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${proto}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;">Plano</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${plano}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;">Serviço</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600;">${serv}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;">Início</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${inicio}</td></tr>
+        <tr><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;">Vencimento</td><td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;">${vencimento}</td></tr>
+        <tr><td style="padding:8px 12px;color:#64748b;">Acesso</td><td style="padding:8px 12px;">${login}</td></tr>
+      </table>
+      <p style="font-size:13px;color:#64748b;">Em caso de dúvida, responda este e-mail ou fale com nosso suporte.</p>
+    </td></tr>
+    <tr><td style="padding:16px 24px;background:#f8fafc;font-size:12px;color:#94a3b8;text-align:center;">
+      CADBRASIL · Licitações e SICAF
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function getLicencaAtivadaFallbackText(d: LicencaAtivadaData): string {
+  return [
+    `Olá, ${d.nomeResponsavel}`,
+    "",
+    `Seu contrato de licença foi aceito e está ativo para ${d.razaoSocial}.`,
+    `Protocolo: ${d.protocolo}`,
+    `Plano: ${d.plano}`,
+    `Serviço: ${d.servicoLabel || d.tipoServico}`,
+    `Início: ${d.dataInicio}`,
+    `Vencimento: ${d.dataVencimento}`,
+    `Acesso: ${d.emailAcesso}`,
+    "",
+    "CADBRASIL",
+  ].join("\n");
+}
+
+export async function enviarEmailLicencaAtivada(d: LicencaAtivadaData): Promise<void> {
+  if (isEmailApiPlaceholder()) {
+    console.warn("[email-api] Envio licença ativada ignorado: EMAIL_API_URL é placeholder.");
+    return;
+  }
+
+  const vars: Record<string, string> = {
+    nome: d.nomeResponsavel,
+    empresa: d.razaoSocial,
+    documento: d.documentoMasked,
+    email: d.emailAcesso,
+    protocolo: d.protocolo,
+    servico: d.servicoLabel || d.tipoServico,
+    plano: d.plano,
+    data_inicio: d.dataInicio,
+    data_vencimento: d.dataVencimento,
+    link_acesso: getPortalAccessUrl(),
+    perfil: d.servicoLabel || d.tipoServico,
+  };
+
+  const dbTemplate = await getTemplateFromDb(23);
+
+  const assunto = dbTemplate?.assunto
+    ? renderPlaceholders(dbTemplate.assunto, vars, { escapeValues: false })
+    : `CadBrasil :: Licença ativada com sucesso - ${d.protocolo}`;
+
+  const corpoHtml = dbTemplate?.corpo_html
+    ? renderPlaceholders(dbTemplate.corpo_html, vars, { escapeValues: true })
+    : getLicencaAtivadaFallbackHtml(d);
+
+  const payload: EmailApiPayload = {
+    email_destino: d.emailResponsavel,
+    nome_destino: d.razaoSocial,
+    assunto,
+    corpo_html: corpoHtml,
+    corpo_texto: getLicencaAtivadaFallbackText(d),
+    prioridade: 1,
+    max_tentativas: 3,
+    id_dominio: null,
+    data_agendamento: null,
+  };
+
+  const result = await postSendCron(payload);
+  console.log("[email-api] Licença ativada enviado:", d.emailResponsavel, result);
 }
 
 function getNotificacaoInternaHtml(d: {
@@ -294,7 +408,7 @@ export async function enviarEmailNotificacao(d: {
   }
 }
 
-/** Pós-cadastro: boas-vindas + opcional notificação interna (não afeta HTTP 201). */
+/** Pós-cadastro: boas-vindas + licença ativada + opcional notificação interna (não afeta HTTP 201). */
 export async function dispararEmailsPosCadastro(d: {
   emailResponsavel: string;
   nomeResponsavel: string;
@@ -305,6 +419,9 @@ export async function dispararEmailsPosCadastro(d: {
   tipoServico: string;
   servicoLabel: string;
   aceitaNotificacoes: boolean;
+  plano: string;
+  dataInicio: string;
+  dataVencimento: string;
 }): Promise<void> {
   const boasVindas = enviarEmailCadastro({
     emailResponsavel: d.emailResponsavel,
@@ -318,8 +435,24 @@ export async function dispararEmailsPosCadastro(d: {
     console.error("[cadastro] enviarEmailCadastro", e);
   });
 
+  const licenca = enviarEmailLicencaAtivada({
+    emailResponsavel: d.emailResponsavel,
+    nomeResponsavel: d.nomeResponsavel,
+    razaoSocial: d.razaoSocial,
+    documentoMasked: d.documentoMasked,
+    protocolo: d.protocolo,
+    tipoServico: d.tipoServico,
+    servicoLabel: d.servicoLabel,
+    emailAcesso: d.emailAcesso,
+    plano: d.plano,
+    dataInicio: d.dataInicio,
+    dataVencimento: d.dataVencimento,
+  }).catch((e) => {
+    console.error("[cadastro] enviarEmailLicencaAtivada", e);
+  });
+
   if (!d.aceitaNotificacoes) {
-    await boasVindas;
+    await Promise.all([boasVindas, licenca]);
     return;
   }
 
@@ -334,5 +467,5 @@ export async function dispararEmailsPosCadastro(d: {
     if (r.success === false) console.warn("[cadastro] enviarEmailNotificacao", r.error);
   });
 
-  await Promise.all([boasVindas, notif]);
+  await Promise.all([boasVindas, licenca, notif]);
 }

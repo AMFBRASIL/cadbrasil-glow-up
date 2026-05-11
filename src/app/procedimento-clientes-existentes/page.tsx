@@ -10,9 +10,11 @@ import {
   Bot,
   ArrowRight,
   LifeBuoy,
-  FolderOpen,
   Wrench,
   ZoomIn,
+  AlertTriangle,
+  MessageCircle,
+  Send,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -20,6 +22,7 @@ const steps = [
   {
     icon: Lock,
     title: "1. Acessar a plataforma nova",
+    highlight: false,
     points: [
       "Entre na plataforma oficial do fornecedor.",
       "Use seu e-mail e senha ja cadastrados.",
@@ -38,6 +41,7 @@ const steps = [
   {
     icon: Wrench,
     title: "2. Abrir Meu SICAF em + Detalhes e instalar o Assistente CADBRASIL",
+    highlight: false,
     points: [
       'No menu, acesse "Meu SICAF".',
       'Clique em "+ Detalhes" para abrir o processo do fornecedor.',
@@ -60,36 +64,16 @@ const steps = [
     ],
   },
   {
-    icon: FolderOpen,
-    title: "3. Enviar documentos",
-    points: [
-      "Com o processo aberto, envie todos os documentos solicitados na plataforma.",
-      "Confirme se os arquivos estao legiveis e atualizados.",
-      "Acompanhe o status para verificar pendencias de documentacao.",
-    ],
-    ctaLabel: "Abrir plataforma do fornecedor",
-    ctaHref: "https://fornecedor.cadbrasil.com.br",
-    previewImages: [
-      {
-        src: "/procedimento-clientes-etapa-3-1.png",
-        alt: "Painel da empresa com botao Documentos e Certidoes",
-        modalTitle: "Documentos — acessar pelo painel",
-      },
-      {
-        src: "/procedimento-clientes-etapa-3-2.png",
-        alt: "Modal Documentos e Certidoes com lista para inserir arquivos",
-        modalTitle: "Documentos e Certidoes — enviar arquivos",
-      },
-    ],
-  },
-  {
     icon: Bot,
-    title: "4. Conversar com o Assistente CADBRASIL e enviar a situacao do fornecedor",
+    title: "3. Conversar com o Assistente CADBRASIL e enviar a situacao do fornecedor",
+    highlight: true,
     points: [
-      "Ative o Assistente CADBRASIL durante o preenchimento no SICAF.",
-      "Siga as orientacoes para validar campos e reduzir erros.",
-      "Envie a situacao atual do fornecedor para acelerar o acompanhamento da equipe.",
+      "Todo o processo do SICAF deve ser feito atraves do Assistente CADBRASIL — ele e a ferramenta principal para cadastro, atualizacao e envio de dados.",
+      "O Assistente orienta cada campo, valida documentos automaticamente e reduz erros no preenchimento.",
+      "Envie a situacao atual do fornecedor pelo Assistente para que a equipe CADBRASIL acompanhe o processo em tempo real.",
+      "Documentos, certidoes e pendencias sao verificados e encaminhados diretamente pelo Assistente — nao e necessario enviar separadamente.",
     ],
+    alertMessage: "Atencao: todo o processo do SICAF deve ser conduzido pelo Assistente CADBRASIL. Ele e obrigatorio para garantir o correto preenchimento e envio dos dados ao governo.",
     previewImages: [
       {
         src: "/procedimento-clientes-etapa-4-1.png",
@@ -110,7 +94,8 @@ const steps = [
   },
   {
     icon: LifeBuoy,
-    title: "5. Abrir ticket de suporte",
+    title: "4. Abrir ticket de suporte",
+    highlight: false,
     points: [
       "Se precisar de ajuda, abra um ticket diretamente na plataforma.",
       "Descreva o problema com detalhes e, se possivel, inclua prints.",
@@ -119,7 +104,7 @@ const steps = [
   },
 ];
 
-const quickFlow = ["Plataforma", "Meu SICAF", "Documentos", "Assistente", "Ticket", "Concluido"];
+const quickFlow = ["Plataforma", "Meu SICAF", "Assistente CADBRASIL", "Ticket", "Concluido"];
 
 export default function ProcedimentoClientesExistentesPage() {
   return (
@@ -171,18 +156,59 @@ export default function ProcedimentoClientesExistentesPage() {
             {steps.map((step) => (
               <article
                 key={step.title}
-                className="p-6 md:p-7 rounded-2xl bg-card border border-border/70 shadow-soft hover:shadow-card transition-smooth"
+                className={`p-6 md:p-7 rounded-2xl shadow-soft hover:shadow-card transition-smooth ${
+                  step.highlight
+                    ? "bg-gradient-to-br from-primary/[0.06] via-card to-emerald-500/[0.04] border-2 border-primary/40 ring-1 ring-primary/20"
+                    : "bg-card border border-border/70"
+                }`}
               >
                 <div className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                  <div
+                    className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                      step.highlight
+                        ? "bg-gradient-to-br from-primary to-emerald-600 text-white shadow-md"
+                        : "bg-primary-soft text-primary"
+                    }`}
+                  >
                     <step.icon className="w-5 h-5" />
                   </div>
                   <div className="flex-1 space-y-4">
-                    <h2 className="font-display font-bold text-xl text-foreground">{step.title}</h2>
+                    <div>
+                      <h2 className={`font-display font-bold text-xl ${step.highlight ? "text-primary" : "text-foreground"}`}>
+                        {step.title}
+                      </h2>
+                      {step.highlight && (
+                        <span className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-bold text-primary uppercase tracking-wide">
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          Etapa principal do processo
+                        </span>
+                      )}
+                    </div>
+
+                    {"alertMessage" in step && step.alertMessage ? (
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300/60 dark:border-amber-500/30">
+                        <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 leading-relaxed">
+                          {step.alertMessage}
+                        </p>
+                      </div>
+                    ) : null}
+
                     <ul className="space-y-2.5">
                       {step.points.map((point) => (
-                        <li key={point} className="flex items-start gap-2.5 text-sm md:text-[15px] text-muted-foreground leading-relaxed">
-                          <CheckCircle2 className="w-4.5 h-4.5 mt-0.5 text-primary-glow shrink-0" />
+                        <li
+                          key={point}
+                          className={`flex items-start gap-2.5 leading-relaxed ${
+                            step.highlight
+                              ? "text-sm md:text-[15px] text-foreground/90 font-medium"
+                              : "text-sm md:text-[15px] text-muted-foreground"
+                          }`}
+                        >
+                          {step.highlight ? (
+                            <Send className="w-4 h-4 mt-0.5 text-primary shrink-0" />
+                          ) : (
+                            <CheckCircle2 className="w-4.5 h-4.5 mt-0.5 text-primary-glow shrink-0" />
+                          )}
                           <span>{point}</span>
                         </li>
                       ))}
@@ -201,7 +227,11 @@ export default function ProcedimentoClientesExistentesPage() {
                     ) : null}
 
                     {"previewImages" in step && step.previewImages?.length ? (
-                      <div className="rounded-xl border border-primary/20 bg-primary-soft/40 p-3">
+                      <div className={`rounded-xl p-3 ${
+                        step.highlight
+                          ? "border-2 border-primary/30 bg-primary/[0.04]"
+                          : "border border-primary/20 bg-primary-soft/40"
+                      }`}>
                         <p className="text-xs font-semibold text-primary mb-2">
                           Exemplo visual de onde clicar ({step.previewImages.length} imagem{step.previewImages.length > 1 ? "ens" : ""})
                         </p>

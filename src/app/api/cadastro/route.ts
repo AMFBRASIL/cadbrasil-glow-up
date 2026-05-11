@@ -322,6 +322,9 @@ export async function POST(req: Request) {
         tipoServico,
         servicoLabel: data.servico,
         aceitaNotificacoes: Boolean(data.aceitaNotificacoes),
+        plano: "Licença + Manutenção",
+        dataInicio: inicio,
+        dataVencimento: vencimento,
       }).catch((err) => console.error("[cadastro] dispararEmailsPosCadastro", err))
     );
 
