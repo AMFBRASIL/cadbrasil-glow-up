@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: `${SITE_URL}/og-cadbrasil.png`,
+        url: `${SITE_URL}/hero-bg.jpg`,
         width: 1200,
         height: 630,
         alt: "CADBRASIL — Especialistas em SICAF e licitações",
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CADBRASIL — Assessoria SICAF e Licitações Públicas",
     description: SITE_DESCRIPTION,
-    images: [`${SITE_URL}/og-cadbrasil.png`],
+    images: [`${SITE_URL}/hero-bg.jpg`],
   },
   verification: {
     google: "GT-KTPDP2TV",
