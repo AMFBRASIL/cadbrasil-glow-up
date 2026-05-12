@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getTrackingParamsForPayload } from "@/lib/tracking";
+import { trackConversion } from "@/lib/utm";
 import { Button } from "@/components/ui/button";
 import { PagamentoTaxaDialog, type PagamentoTaxaDados } from "@/components/PagamentoTaxaDialog";
 import {
@@ -706,6 +707,11 @@ export function CadastroForm() {
       }
       setProtocolo(json.protocolo);
       setSuccess(true);
+      trackConversion("cadastro_concluido", 985, {
+        protocolo: json.protocolo,
+        tipo_servico: data.servico,
+        tipo_pessoa: data.tipoPessoa,
+      });
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
     } finally {
