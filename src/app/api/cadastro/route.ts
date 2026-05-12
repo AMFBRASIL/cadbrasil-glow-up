@@ -137,6 +137,7 @@ export async function POST(req: Request) {
     rua: data.rua,
     numero: data.numero,
     complemento: data.complemento,
+    bairro: data.bairro,
   });
   const userAgent = req.headers.get("user-agent");
   const ipAssinatura =

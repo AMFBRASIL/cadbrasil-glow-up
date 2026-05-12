@@ -9,13 +9,14 @@ export function iniciaisNome(nome: string): string {
   return (p[0][0] + p[p.length - 1][0]).toUpperCase();
 }
 
-/** Endereço único em clientes.endereco (logradouro, número, complemento). */
+/** Endereço único em clientes.endereco (logradouro, número, complemento, bairro). */
 export function montarEnderecoCliente(d: {
   rua: string;
   numero: string;
   complemento?: string | null;
+  bairro?: string | null;
 }): string | null {
-  const parts = [d.rua?.trim(), d.numero?.trim(), d.complemento?.trim()].filter(Boolean);
+  const parts = [d.rua?.trim(), d.numero?.trim(), d.complemento?.trim(), d.bairro?.trim()].filter(Boolean);
   if (parts.length === 0) return null;
   return parts.join(", ");
 }

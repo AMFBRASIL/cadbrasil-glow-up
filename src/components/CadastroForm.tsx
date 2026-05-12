@@ -705,13 +705,7 @@ export function CadastroForm() {
         toast.error("Resposta inválida do servidor.");
         return;
       }
-      setProtocolo(json.protocolo);
-      setSuccess(true);
-      trackConversion("cadastro_concluido", 985, {
-        protocolo: json.protocolo,
-        tipo_servico: data.servico,
-        tipo_pessoa: data.tipoPessoa,
-      });
+      window.location.href = `/conclusao-cadastro?protocolo=${encodeURIComponent(json.protocolo)}`;
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
     } finally {
