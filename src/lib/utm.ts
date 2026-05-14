@@ -23,6 +23,18 @@ declare global {
 }
 
 const STORAGE_KEY = "cadbrasil_utm";
+const SESSION_ENGAGEMENT_KEY = "cadbrasil_ads_engagement_fired";
+
+/** ID Google Ads (mesmo do `layout.tsx` — gtag config). */
+const GOOGLE_ADS_AW_ID = "AW-16460586067";
+
+function resolveEngagementSendTo(): string | undefined {
+  const full = process.env.NEXT_PUBLIC_GADS_ENGAGEMENT_SEND_TO?.trim();
+  if (full) return full;
+  const label = process.env.NEXT_PUBLIC_GADS_ENGAGEMENT_LABEL?.trim();
+  if (label) return `${GOOGLE_ADS_AW_ID}/${label}`;
+  return undefined;
+}
 
 const TRACKING_QUERY_KEYS = [
   "utm_source",
@@ -122,8 +134,74 @@ export function getUtmForPayload(): Record<string, string> {
 }
 
 /**
+ * Conversão Google Ads do tipo "Engagement" (evento gerado no Google Ads / Google tag).
+ * Configure `NEXT_PUBLIC_GADS_ENGAGEMENT_SEND_TO` (ex.: AW-16460586067/AbCdEfGhIj) ou
+ * só `NEXT_PUBLIC_GADS_ENGAGEMENT_LABEL` (sufixo após AW-16460586067/).
+ *
+ * Equivale a:
+ *   gtag('event', 'ads_conversion_engagement', { send_to, ... })
+ */
+export function trackGoogleAdsEngagement(extraParams?: Record<string, unknown>): void {
+  try {
+    const utm = getUtmParams();
+    const sendTo = resolveEngagementSendTo();
+
+    const gtagParams: Record<string, unknown> = {
+      ...(sendTo ? { send_to: sendTo } : {}),
+      ...(utm?.utm_term && { keyword: utm.utm_term }),
+      ...(utm?.utm_campaign && { campaign: utm.utm_campaign }),
+      ...(utm?.utm_source && { source: utm.utm_source }),
+      ...(utm?.gclid && { gclid: utm.gclid }),
+      ...extraParams,
+    };
+
+    if (typeof window !== "undefined" && typeof window.gtag === "function") {
+      window.gtag("event", "ads_conversion_engagement", gtagParams);
+    }
+
+    if (typeof window !== "undefined" && Array.isArray(window.dataLayer)) {
+      window.dataLayer.push({
+        event: "ads_conversion_engagement",
+        ...gtagParams,
+      });
+    }
+  } catch (e) {
+    console.warn("[Tracking] ads_conversion_engagement:", e);
+  }
+}
+
+/** Dispara engagement uma vez por sessão de aba (sessionStorage), apenas se `NEXT_PUBLIC_GADS_ENGAGEMENT_AUTO=true`. */
+export function scheduleGoogleAdsEngagementOncePerSession(): void {
+  if (typeof window === "undefined") return;
+
+  const auto =
+    process.env.NEXT_PUBLIC_GADS_ENGAGEMENT_AUTO === "1" ||
+    process.env.NEXT_PUBLIC_GADS_ENGAGEMENT_AUTO === "true";
+  if (!auto) return;
+
+  try {
+    if (sessionStorage.getItem(SESSION_ENGAGEMENT_KEY)) return;
+  } catch {
+    return;
+  }
+
+  const delayMs = Number(process.env.NEXT_PUBLIC_GADS_ENGAGEMENT_DELAY_MS || 30000);
+  const ms = Number.isFinite(delayMs) && delayMs >= 3000 ? delayMs : 30000;
+
+  window.setTimeout(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_ENGAGEMENT_KEY)) return;
+      sessionStorage.setItem(SESSION_ENGAGEMENT_KEY, "1");
+      trackGoogleAdsEngagement();
+    } catch {
+      /* ignore */
+    }
+  }, ms);
+}
+
+/**
  * Dispara evento de conversão simultaneamente para:
- *  1. Google Ads (gtag) → send_to: AW-16460586067
+ *  1. Google Ads (gtag) → send_to: AW-16460586067 (constante no código)
  *  2. Google Tag Manager → dataLayer.push
  *  3. Microsoft Ads → uetq.push
  */
@@ -137,7 +215,7 @@ export function trackConversion(
 
     if (typeof window !== "undefined" && typeof window.gtag === "function") {
       const gtagParams: Record<string, unknown> = {
-        send_to: "AW-16460586067",
+        send_to: GOOGLE_ADS_AW_ID,
         ...(value !== undefined && { value, currency: "BRL" }),
         ...(utm?.utm_term && { keyword: utm.utm_term }),
         ...(utm?.utm_campaign && { campaign: utm.utm_campaign }),

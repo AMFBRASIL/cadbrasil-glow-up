@@ -136,7 +136,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 })(window,document,'script','dataLayer','GTM-TRVTMS6M');`}
         </Script>
 
-        {/* Google Ads & Google Tag */}
+        {/* Google Ads & Google Tag — conversão "Engagement": ver trackGoogleAdsEngagement em src/lib/utm.ts */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=AW-16460586067"
           strategy="afterInteractive"
