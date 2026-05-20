@@ -229,12 +229,19 @@ export default function InstaladorAssistenteContent() {
               </p>
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Conteúdo relacionado:{" "}
-              <Link href="/procedimentos-cadbrasil" className="font-semibold text-primary underline-offset-2 hover:underline">
-                Procedimentos CADBRASIL (jornada completa)
-              </Link>
-              .
+            <p className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+              <span>
+                Atualizar SICAF:{" "}
+                <Link href="/assistente-uso" className="font-semibold text-primary underline-offset-2 hover:underline">
+                  passo a passo completo de uso
+                </Link>
+              </span>
+              <span>
+                Jornada:{" "}
+                <Link href="/procedimentos-cadbrasil" className="font-semibold text-primary underline-offset-2 hover:underline">
+                  procedimentos CADBRASIL
+                </Link>
+              </span>
             </p>
           </div>
         </section>
@@ -378,6 +385,9 @@ export default function InstaladorAssistenteContent() {
         <div className="container max-w-7xl py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} CADBRASIL · Todos os direitos reservados</p>
           <div className="flex items-center gap-5 flex-wrap justify-center">
+            <Link href="/assistente-uso" className="hover:text-foreground transition-smooth">
+              Uso do Assistente no SICAF
+            </Link>
             <Link href="/procedimentos-cadbrasil" className="hover:text-foreground transition-smooth">
               Procedimentos CADBRASIL
             </Link>
