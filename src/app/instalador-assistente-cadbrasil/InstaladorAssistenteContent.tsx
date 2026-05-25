@@ -211,7 +211,7 @@ export default function InstaladorAssistenteContent() {
         <div className="absolute inset-x-0 top-0 h-[520px] bg-grid opacity-50 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
 
         <section className="relative container max-w-7xl pt-10 md:pt-16 pb-8">
-          <div className="max-w-4xl space-y-6 animate-fade-up">
+          <div className="max-w-4xl space-y-8 animate-fade-up">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-soft border border-primary/10 text-xs font-semibold text-primary">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-primary-glow opacity-70 animate-ping" />
@@ -220,36 +220,34 @@ export default function InstaladorAssistenteContent() {
               Duas etapas — instalação e uso do Assistente
             </div>
 
-            <div className="space-y-4">
-              <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl leading-[1.05]">
+            <div className="space-y-3">
+              <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl leading-[1.08]">
                 Instalador do Assistente CADBRASIL no SICAF
               </h1>
-              <p className="text-lg text-muted-foreground text-balance max-w-3xl leading-relaxed">
-                <strong className="text-foreground">Etapa 01</strong> reúne as figuras{" "}
-                <strong className="text-foreground">03, 04 e 05</strong>: fluxo dentro do portal CADBRASIL, com os botões
-                que levam a detalhes, ao SICAF e à verificação do Assistente.{" "}
-                <strong className="text-foreground">Etapa 02</strong> cobre instalação e uso:{" "}
-                <strong className="text-foreground">figura 07</strong> (Chrome),{" "}
-                <strong className="text-foreground">figura 06</strong> (assistente no SICAF) e, ao final, um guia visual de{" "}
-                <strong className="text-foreground">como conversar com a IA</strong>, navegar pelos níveis do cadastro e{" "}
-                <strong className="text-foreground">enviar o PDF da Situação do Fornecedor</strong> para validação.
+              <p className="text-lg text-muted-foreground text-balance max-w-2xl leading-relaxed">
+                Guia visual com imagens na ordem correta: primeiro o fluxo no portal CADBRASIL, depois a instalação no
+                Chrome e o uso do assistente dentro do SICAF.
               </p>
             </div>
 
-            <p className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-              <span>
-                Atualizar SICAF:{" "}
-                <Link href="/assistente-uso" className="font-semibold text-primary underline-offset-2 hover:underline">
-                  passo a passo completo de uso
-                </Link>
-              </span>
-              <span>
-                Jornada:{" "}
-                <Link href="/procedimentos-cadbrasil" className="font-semibold text-primary underline-offset-2 hover:underline">
-                  procedimentos CADBRASIL
-                </Link>
-              </span>
-            </p>
+            <div className="grid gap-3 sm:grid-cols-2 max-w-3xl">
+              <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-4 shadow-soft">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5">Etapa 01</p>
+                <p className="text-sm text-foreground font-semibold leading-snug mb-2">Portal CADBRASIL</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Figuras <strong className="text-foreground">03 → 04 → 05</strong>: + Detalhes, Acessar SICAF e
+                  verificação do Assistente.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-card/80 px-4 py-4 shadow-soft">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1.5">Etapa 02</p>
+                <p className="text-sm text-foreground font-semibold leading-snug mb-2">Chrome + SICAF</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Figuras <strong className="text-foreground">07 → 06</strong>, depois chat com IA, níveis do cadastro e
+                  envio do PDF da Situação do Fornecedor.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -367,7 +365,7 @@ export default function InstaladorAssistenteContent() {
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
                   <Headphones className="h-6 w-6" />
                 </div>
-                <motion.div>
+                <div>
                   <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Suporte remoto CADBRASIL</h2>
                   <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                     Nossa equipe realiza atendimento remoto via AnyDesk quando necessário.
