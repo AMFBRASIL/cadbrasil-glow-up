@@ -9,11 +9,14 @@ import {
   Building2,
   CheckCircle2,
   Download,
+  Headphones,
   LayoutDashboard,
+  MessageCircle,
   ShieldCheck,
   ZoomIn,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { montarWhatsAppHref } from "@/lib/cadbrasil-atendimento";
 
 const PORTAL_FORNECEDOR = "https://fornecedor.cadbrasil.com.br";
 const CHROME_STORE_ASSISTENTE =
@@ -180,6 +183,10 @@ function ImageBlock({ img, stepTitle }: { img: StepImage; stepTitle: string }) {
 }
 
 export default function InstaladorAssistenteContent() {
+  const whatsAppSuporteInstalacao = montarWhatsAppHref(
+    "Olá! Preciso de suporte remoto via AnyDesk para ajudar na instalação do Assistente CADBRASIL no Chrome. Pode me orientar sobre o acesso?",
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-xl sticky top-0 z-40">
@@ -355,6 +362,46 @@ export default function InstaladorAssistenteContent() {
                 </div>
               </article>
             ))}
+            <article className="p-6 md:p-8 rounded-2xl bg-card border border-border/70 shadow-soft">
+              <div className="flex flex-wrap items-start gap-4 mb-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                  <Headphones className="h-6 w-6" />
+                </div>
+                <motion.div>
+                  <h2 className="font-display font-bold text-xl md:text-2xl text-foreground">Suporte remoto CADBRASIL</h2>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                    Nossa equipe realiza atendimento remoto via AnyDesk quando necessário.
+                  </p>
+                </div>
+              </div>
+              <ul className="grid gap-2 sm:grid-cols-2 mb-4">
+                {[
+                  "Instalação da extensão no Chrome",
+                  "Verificação se o assistente foi reconhecido",
+                  "Acesso ao SICAF pelo portal CADBRASIL",
+                  "Configuração do navegador",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Bot className="h-4 w-4 text-primary shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-sm md:text-[15px] text-muted-foreground leading-relaxed mb-4">
+                Caso tenha dificuldades e precise de <strong className="text-foreground">suporte via AnyDesk</strong> para acesso
+                remoto da nossa equipe na <strong className="text-foreground">instalação do Assistente CADBRASIL</strong>, entre em
+                contato pelo botão abaixo.
+              </p>
+              <a
+                href={whatsAppSuporteInstalacao}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#25D366] text-white text-sm font-semibold shadow-soft hover:opacity-95 transition-smooth"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Solicitar suporte via AnyDesk — WhatsApp
+              </a>
+            </article>
           </div>
         </section>
 
