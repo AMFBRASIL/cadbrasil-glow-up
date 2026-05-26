@@ -7,13 +7,13 @@ const SITE_URL = "https://cadastro.cadbrasil.com.br";
 export const metadata: Metadata = {
   title: "Cadastro concluído — CADBRASIL SICAF",
   description:
-    "Seu cadastro na CADBRASIL foi concluído com sucesso. Acesse o protocolo, gere o boleto ou PIX para pagamento da licença e envie os documentos pelo portal.",
+    "Seu cadastro na CADBRASIL foi concluído com sucesso. Acesse o portal com seu protocolo para pagamento da licença e envio dos documentos.",
   alternates: { canonical: `${SITE_URL}/conclusao-cadastro` },
   robots: { index: false, follow: true },
   openGraph: {
     title: "Cadastro concluído — CADBRASIL SICAF",
     description:
-      "Cadastro realizado com sucesso. Pague a taxa da licença e envie os documentos para iniciar o processo SICAF.",
+      "Cadastro realizado com sucesso. Acesse o portal para pagar a taxa da licença e enviar os documentos.",
     url: `${SITE_URL}/conclusao-cadastro`,
     type: "website",
     locale: "pt_BR",

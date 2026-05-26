@@ -5,27 +5,26 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  ArrowRight,
+  AlertCircle,
+  ArrowDown,
   Building2,
   CheckCircle2,
   Copy,
-  CreditCard,
   ExternalLink,
+  FileCheck,
   FileUp,
   Headphones,
   KeyRound,
-  Lock,
   Loader2,
+  Lock,
+  MousePointerClick,
   ShieldCheck,
   Sparkles,
   Clock,
   Star,
-  FileCheck,
-  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trackConversion } from "@/lib/utm";
-import { PagamentoTaxaDialog, type PagamentoTaxaDados } from "@/components/PagamentoTaxaDialog";
 
 const FORNECEDOR_PORTAL_URL = "https://fornecedor.cadbrasil.com.br";
 
@@ -69,133 +68,99 @@ type CadastroData = {
 };
 
 function SuccessCard({ data }: { data: CadastroData }) {
-  const [pagamentoDialogOpen, setPagamentoDialogOpen] = useState(false);
-
-  const pagamentoDados: PagamentoTaxaDados = {
-    protocolo: data.protocolo,
-    tipoPessoa: data.tipoPessoa,
-    nomeResponsavel: data.nome,
-    razaoSocial: data.tipoPessoa === "PJ" ? data.razaoSocial : undefined,
-    cnpj: data.tipoPessoa === "PJ" ? data.documento : undefined,
-    cpf: data.tipoPessoa === "PF" ? data.documento : undefined,
-    email: data.email,
-    telefone: data.telefone,
-    rua: data.rua,
-    numero: data.numero,
-    complemento: data.complemento || undefined,
-    bairro: data.bairro,
-    cep: data.cep,
-    cidade: data.cidade,
-    estado: data.estado,
-  };
-
   return (
-    <>
-      <div className="bg-card rounded-3xl shadow-elevated border border-border/60 p-6 md:p-8 animate-fade-up">
-        <div className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
-            <CheckCircle2 className="h-8 w-8 text-success" />
-          </div>
-          <h2 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">
-            Cadastro enviado com sucesso
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-lg text-balance mb-5 leading-relaxed">
-            Para agilizar: entre no portal,{" "}
-            <strong className="font-semibold text-foreground">quite a taxa da licença</strong> e envie os documentos.
-            Assim o processo já pode ser iniciado.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-muted/25 px-3 py-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protocolo</span>
-            <code className="font-mono text-xs md:text-sm font-semibold text-foreground tracking-tight">{data.protocolo}</code>
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(data.protocolo);
-                toast.success("Protocolo copiado!");
-              }}
-              className="rounded-md p-1.5 text-primary hover:bg-primary-soft transition-smooth"
-              aria-label="Copiar protocolo"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">Guarde o protocolo para falar com o suporte, se precisar.</p>
+    <div className="bg-card rounded-3xl shadow-elevated border border-border/60 p-6 md:p-8 animate-fade-up">
+      <div className="flex flex-col items-center text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
+          <CheckCircle2 className="h-8 w-8 text-success" />
         </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setPagamentoDialogOpen(true)}
-            className="group flex flex-col rounded-2xl border-2 border-primary/25 bg-gradient-soft p-5 text-left shadow-soft transition-smooth hover:border-primary/45 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20"
-          >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-cta text-primary-foreground shadow-soft">
-              <CreditCard className="h-5 w-5" />
-            </div>
-            <p className="font-display text-base font-bold text-foreground">Pagar taxa da licença</p>
-            <p className="mt-2 flex-1 text-xs text-muted-foreground leading-relaxed">
-              Gere <strong className="font-medium text-foreground">boleto</strong> ou{" "}
-              <strong className="font-medium text-foreground">PIX</strong> pela Efí (Gerencianet). O valor é cobrado para o protocolo do seu cadastro.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-              Boleto ou PIX — gerar cobrança
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </button>
-
-          <a
-            href={FORNECEDOR_PORTAL_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex flex-col rounded-2xl border border-border/80 bg-card p-5 text-left shadow-soft transition-smooth hover:border-primary/30 hover:shadow-card focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/15"
-          >
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
-              <FileUp className="h-5 w-5" />
-            </div>
-            <p className="font-display text-base font-bold text-foreground">Enviar documentos</p>
-            <p className="mt-2 flex-1 text-xs text-muted-foreground leading-relaxed">
-              Envie a documentação solicitada pelo sistema no portal do fornecedor. Você pode fazer isso após o pagamento ou conforme as instruções na sua área logada.
-            </p>
-            <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-              Abrir portal — documentos
-              <ExternalLink className="h-4 w-4 opacity-80 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </a>
-        </div>
-
-        <div className="mt-5 flex items-start justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-center sm:text-left">
-          <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground">Acesso ao portal:</span> use o e-mail{" "}
-            <span className="font-medium text-foreground">{data.emailAcesso}</span> e a senha definida no cadastro.
-            <span className="hidden sm:inline"> </span>
-            <span className="block sm:inline text-muted-foreground/90">
-              Conexão segura · mesmo site para pagamento e envio de arquivos.
-            </span>
-          </p>
-        </div>
-
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center text-balance">
-          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" />
-          Pagamento via Efí · envio de documentos no portal oficial CADBRASIL
+        <h2 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">
+          Cadastro enviado com sucesso
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-lg text-balance mb-5 leading-relaxed">
+          Para agilizar: entre no portal com seu e-mail e senha,{" "}
+          <strong className="font-semibold text-foreground">quite a taxa da licença</strong> e envie os documentos.
+          Tudo é feito na plataforma CADBRASIL.
         </p>
 
-        <div className="mt-5 flex justify-center">
-          <Link
-            href="/"
-            className="text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-4 py-2 rounded-lg transition-smooth"
+        <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-muted/25 px-3 py-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protocolo</span>
+          <code className="font-mono text-xs md:text-sm font-semibold text-foreground tracking-tight">{data.protocolo}</code>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(data.protocolo);
+              toast.success("Protocolo copiado!");
+            }}
+            className="rounded-md p-1.5 text-primary hover:bg-primary-soft transition-smooth"
+            aria-label="Copiar protocolo"
           >
-            Fazer novo cadastro
-          </Link>
+            <Copy className="h-3.5 w-3.5" />
+          </button>
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">Guarde o protocolo para falar com o suporte, se precisar.</p>
       </div>
 
-      <PagamentoTaxaDialog
-        open={pagamentoDialogOpen}
-        onOpenChange={setPagamentoDialogOpen}
-        dados={pagamentoDados}
-      />
-    </>
+      <div className="mt-6 space-y-3">
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary-soft px-3.5 py-1.5 text-xs font-semibold text-primary">
+            <MousePointerClick className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            Próximo passo — clique no botão abaixo
+          </div>
+          <ArrowDown className="h-4 w-4 text-primary animate-bounce" aria-hidden />
+        </div>
+
+        <a
+          href={FORNECEDOR_PORTAL_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group relative flex flex-col rounded-2xl border-2 border-primary/40 bg-gradient-soft p-5 pt-6 text-left shadow-soft ring-2 ring-primary/20 ring-offset-2 ring-offset-card transition-smooth hover:border-primary/60 hover:shadow-card hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
+        >
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-gradient-cta px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground shadow-soft whitespace-nowrap">
+            <MousePointerClick className="h-3 w-3 shrink-0" aria-hidden />
+            Clique aqui
+          </span>
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-cta text-primary-foreground shadow-soft">
+            <FileUp className="h-5 w-5" />
+          </div>
+          <p className="font-display text-base font-bold text-foreground">Enviar documentos</p>
+          <p className="mt-2 flex-1 text-xs text-muted-foreground leading-relaxed">
+            Acesse o portal do fornecedor para enviar a documentação solicitada e concluir o pagamento da licença.
+            Use o e-mail e a senha definidos no cadastro.
+          </p>
+          <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
+            Clique para abrir o portal — documentos e pagamento
+            <ExternalLink className="h-4 w-4 opacity-80 transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </a>
+      </div>
+
+      <div className="mt-5 flex items-start justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-center sm:text-left">
+        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          <span className="font-semibold text-foreground">Acesso ao portal:</span> use o e-mail{" "}
+          <span className="font-medium text-foreground">{data.emailAcesso}</span> e a senha definida no cadastro.
+          <span className="hidden sm:inline"> </span>
+          <span className="block sm:inline text-muted-foreground/90">
+            Conexão segura · pagamento e envio de arquivos no mesmo ambiente.
+          </span>
+        </p>
+      </div>
+
+      <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center text-balance">
+        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" />
+        Pagamento e envio de documentos no portal oficial CADBRASIL
+      </p>
+
+      <div className="mt-5 flex justify-center">
+        <Link
+          href="/"
+          className="text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-4 py-2 rounded-lg transition-smooth"
+        >
+          Fazer novo cadastro
+        </Link>
+      </div>
+    </div>
   );
 }
 
