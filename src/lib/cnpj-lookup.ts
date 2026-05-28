@@ -1,6 +1,19 @@
-import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
+export type CnpjLookupResult = {
+  razao_social: string;
+  nome_fantasia: string;
+  inscricao_estadual: string;
+  porte: string;
+  cnae_fiscal_descricao: string;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  municipio: string;
+  uf: string;
+  ddd_telefone_1: string;
+  email: string;
+};
 
 type CnpjWsResponse = {
   razao_social?: string | null;
@@ -37,7 +50,7 @@ type CnpjWsResponse = {
   } | null;
 };
 
-function onlyDigits(value: string): string {
+export function onlyDigitsCnpj(value: string): string {
   return value.replace(/\D/g, "");
 }
 
@@ -69,20 +82,16 @@ function pickInscricaoEstadual(data: CnpjWsResponse): string {
   return inscricao?.inscricao_estadual || "";
 }
 
-export async function GET(_request: Request, { params }: { params: { cnpj: string } }) {
-  const cnpj = onlyDigits(params.cnpj || "");
-
-  if (cnpj.length !== 14) {
-    return NextResponse.json({ error: "CNPJ inválido" }, { status: 400 });
-  }
+export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
+  const digits = onlyDigitsCnpj(cnpj);
+  if (digits.length !== 14) return null;
 
   const token = process.env.CNPJ_WS_API_TOKEN;
-
   if (!token) {
-    return NextResponse.json({ error: "Token da CNPJ.ws não configurado" }, { status: 500 });
+    throw new Error("CNPJ_WS_API_TOKEN não configurado");
   }
 
-  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${cnpj}`, {
+  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
     headers: {
       x_api_token: token,
       Accept: "application/json",
@@ -90,16 +99,13 @@ export async function GET(_request: Request, { params }: { params: { cnpj: strin
     cache: "no-store",
   });
 
-  if (!response.ok) {
-    const status = response.status === 404 ? 404 : 502;
-    return NextResponse.json({ error: "CNPJ não localizado" }, { status });
-  }
+  if (!response.ok) return null;
 
   const data = (await response.json()) as CnpjWsResponse;
   const estabelecimento = data.estabelecimento;
   const dddTelefone = [estabelecimento?.ddd1, estabelecimento?.telefone1].filter(Boolean).join("");
 
-  return NextResponse.json({
+  return {
     razao_social: data.razao_social || "",
     nome_fantasia: estabelecimento?.nome_fantasia || "",
     inscricao_estadual: pickInscricaoEstadual(data),
@@ -114,5 +120,6 @@ export async function GET(_request: Request, { params }: { params: { cnpj: strin
     uf: estabelecimento?.estado?.sigla || "",
     ddd_telefone_1: dddTelefone,
     email: estabelecimento?.email || "",
-  });
+  };
 }
+

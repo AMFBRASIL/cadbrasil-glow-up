@@ -3,6 +3,7 @@
 import { type ReactNode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { lookupCnpjAction } from "@/app/actions/cnpj-lookup";
 import { cadastroSchema, type CadastroData, isValidCPF } from "@/lib/validations/cadastro";
 import {
   ArrowRight,
@@ -62,23 +63,6 @@ const maskPhone = (v: string) => {
 
 const maskCEP = (v: string) =>
   v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
-
-type CnpjLookupResponse = {
-  razao_social?: string;
-  nome_fantasia?: string;
-  inscricao_estadual?: string;
-  porte?: string;
-  cnae_fiscal_descricao?: string;
-  cep?: string;
-  logradouro?: string;
-  numero?: string;
-  complemento?: string;
-  bairro?: string;
-  municipio?: string;
-  uf?: string;
-  ddd_telefone_1?: string;
-  email?: string;
-};
 
 type ExistingSupplier = {
   tipo: "CPF" | "CNPJ";
@@ -601,13 +585,17 @@ export function CadastroForm() {
     setCnpjLoading(true);
     setCnpjFetched(false);
     try {
-      const res = await fetch(`/api/cnpj/${cnpj}`, { cache: "no-store" });
-      if (!res.ok) {
+      const result = await lookupCnpjAction(cnpj);
+      if (result.ok === false) {
         clearCompanyFields();
-        toast.info("CNPJ não localizado. Preencha os dados manualmente.");
+        if (result.error === "Serviço de consulta indisponível") {
+          toast.error("Consulta CNPJ indisponível no momento. Preencha manualmente.");
+        } else {
+          toast.info(result.error || "CNPJ não localizado. Preencha os dados manualmente.");
+        }
         return;
       }
-      const d = (await res.json()) as CnpjLookupResponse;
+      const d = result.data;
       setValue("razaoSocial", d.razao_social || "", { shouldValidate: true });
       setValue("nomeFantasia", d.nome_fantasia || "", { shouldValidate: true });
       setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
