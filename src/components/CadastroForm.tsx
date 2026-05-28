@@ -461,6 +461,7 @@ export function CadastroForm() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cnpjLoading, setCnpjLoading] = useState(false);
   const [cnpjFetched, setCnpjFetched] = useState(false);
+  const [cnpjManualFill, setCnpjManualFill] = useState(false);
   const [documentCheckLoading, setDocumentCheckLoading] = useState(false);
   const [lastCheckedDocument, setLastCheckedDocument] = useState("");
   const [existingSupplier, setExistingSupplier] = useState<ExistingSupplier | null>(null);
@@ -564,6 +565,7 @@ export function CadastroForm() {
     const fields: Array<keyof CadastroData> = [
       "razaoSocial",
       "nomeFantasia",
+      "inscricaoEstadual",
       "porte",
       "segmento",
       "cep",
@@ -579,19 +581,28 @@ export function CadastroForm() {
     fields.forEach((f) => setValue(f, "" as never, { shouldValidate: false }));
   };
 
+  const resetCnpjCompanyState = () => {
+    setCnpjFetched(false);
+    setCnpjManualFill(false);
+    clearCompanyFields();
+  };
+
   const lookupCNPJ = async (raw: string) => {
     const cnpj = raw.replace(/\D/g, "");
     if (cnpj.length !== 14) return;
     setCnpjLoading(true);
     setCnpjFetched(false);
+    setCnpjManualFill(false);
     try {
       const result = await lookupCnpjAction(cnpj);
       if (result.ok === false) {
         clearCompanyFields();
+        setCnpjFetched(false);
+        setCnpjManualFill(true);
         if (result.error === "Serviço de consulta indisponível") {
           toast.error("Consulta CNPJ indisponível no momento. Preencha manualmente.");
         } else {
-          toast.info(result.error || "CNPJ não localizado. Preencha os dados manualmente.");
+          toast.info("CNPJ não localizado. Preencha os dados manualmente.");
         }
         return;
       }
@@ -614,10 +625,13 @@ export function CadastroForm() {
         setValue("telefone", maskPhone(String(d.ddd_telefone_1)), { shouldValidate: true });
       }
       if (d.email) setValue("email", String(d.email).toLowerCase(), { shouldValidate: true });
+      setCnpjManualFill(false);
       setCnpjFetched(true);
       toast.success("Dados preenchidos automaticamente pela Receita Federal");
     } catch {
       clearCompanyFields();
+      setCnpjFetched(false);
+      setCnpjManualFill(true);
       toast.info("Não foi possível consultar agora. Preencha manualmente.");
     } finally {
       setCnpjLoading(false);
@@ -981,6 +995,8 @@ export function CadastroForm() {
                     ? "Consultando Receita Federal..."
                     : cnpjFetched
                     ? "Dados preenchidos automaticamente. Confira e ajuste se necessário."
+                    : cnpjManualFill
+                    ? "CNPJ não localizado. Preencha os dados da empresa manualmente."
                     : "Digite o CNPJ completo. Buscaremos automaticamente os dados da empresa."
                 }
               >
@@ -995,7 +1011,10 @@ export function CadastroForm() {
                       const v = maskCNPJ(e.target.value);
                       const digits = v.replace(/\D/g, "");
                       setValue("cnpj", v, { shouldValidate: true });
-                      if (digits.length < 14) resetExistingSupplierIfDocumentChanged(digits);
+                      if (digits.length < 14) {
+                        resetExistingSupplierIfDocumentChanged(digits);
+                        resetCnpjCompanyState();
+                      }
                       if (digits.length === 14) void handleCnpjCompleted(v);
                     }}
                   />
@@ -1016,12 +1035,19 @@ export function CadastroForm() {
               <ExistingSupplierCard onOpen={() => setExistingSupplierModalOpen(true)} />
             )}
 
-            {(cnpjFetched || values.razaoSocial) && (
+            {(cnpjFetched || cnpjManualFill) && (
               <>
-                <div className="md:col-span-2 flex items-center gap-2 text-xs text-success bg-success/5 border border-success/20 rounded-xl px-3 py-2">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Dados obtidos da Receita Federal · revise antes de continuar
-                </div>
+                {cnpjFetched ? (
+                  <div className="md:col-span-2 flex items-center gap-2 text-xs text-success bg-success/5 border border-success/20 rounded-xl px-3 py-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Dados obtidos da Receita Federal · revise antes de continuar
+                  </div>
+                ) : (
+                  <div className="md:col-span-2 flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    CNPJ não localizado na Receita Federal · preencha os dados manualmente
+                  </div>
+                )}
                 <div className="md:col-span-2">
                   <Field label="Razão social" required error={errors.razaoSocial?.message}>
                     <input className={inputClass} placeholder="Empresa LTDA" {...register("razaoSocial")} />
