@@ -31,6 +31,8 @@ import { getTrackingParamsForPayload } from "@/lib/tracking";
 import { trackConversion } from "@/lib/utm";
 import { Button } from "@/components/ui/button";
 import { PagamentoTaxaDialog, type PagamentoTaxaDados } from "@/components/PagamentoTaxaDialog";
+import { SegmentOpportunityModal } from "@/components/SegmentOpportunityModal";
+import { estimateLicitacoesForSegment } from "@/lib/segment-opportunity";
 import {
   Dialog,
   DialogContent,
@@ -467,6 +469,11 @@ export function CadastroForm() {
   const [existingSupplier, setExistingSupplier] = useState<ExistingSupplier | null>(null);
   const [existingSupplierModalOpen, setExistingSupplierModalOpen] = useState(false);
   const [pagamentoDialogOpen, setPagamentoDialogOpen] = useState(false);
+  const [segmentModalOpen, setSegmentModalOpen] = useState(false);
+  const [segmentOpportunity, setSegmentOpportunity] = useState<{
+    segmento: string;
+    licitacoesCount: number;
+  } | null>(null);
 
   const form = useForm<CadastroData>({
     resolver: zodResolver(cadastroSchema),
@@ -584,6 +591,8 @@ export function CadastroForm() {
   const resetCnpjCompanyState = () => {
     setCnpjFetched(false);
     setCnpjManualFill(false);
+    setSegmentModalOpen(false);
+    setSegmentOpportunity(null);
     clearCompanyFields();
   };
 
@@ -612,6 +621,17 @@ export function CadastroForm() {
       setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
       setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
       setValue("segmento", d.cnae_fiscal_descricao || "", { shouldValidate: true });
+      const segmento = (d.cnae_fiscal_descricao || "").trim();
+      if (segmento) {
+        setSegmentOpportunity({
+          segmento,
+          licitacoesCount: estimateLicitacoesForSegment(segmento, cnpj),
+        });
+        setSegmentModalOpen(true);
+      } else {
+        setSegmentOpportunity(null);
+        setSegmentModalOpen(false);
+      }
       // endereço
       if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
       setValue("rua", d.logradouro || "", { shouldValidate: true });
@@ -881,6 +901,16 @@ export function CadastroForm() {
         onOpenChange={setExistingSupplierModalOpen}
         supplier={existingSupplier}
       />
+
+      {segmentOpportunity ? (
+        <SegmentOpportunityModal
+          open={segmentModalOpen}
+          onOpenChange={setSegmentModalOpen}
+          segmento={segmentOpportunity.segmento}
+          licitacoesCount={segmentOpportunity.licitacoesCount}
+          onContinue={() => setSegmentModalOpen(false)}
+        />
+      ) : null}
 
       {/* Header + progress */}
       <div className="px-6 md:px-8 pt-7 pb-5 border-b border-border/60 bg-gradient-soft">
