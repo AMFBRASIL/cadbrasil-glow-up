@@ -565,7 +565,7 @@ export default function DiagnosticoSicafContent() {
               </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <Link
-                  href="/cadastro"
+                  href="https://cadastro.cadbrasil.com.br"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground"
                 >
                   <TrendingUp className="h-4 w-4" />
