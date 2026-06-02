@@ -29,7 +29,7 @@ const baseSchema = {
   emailAcesso: z.string().trim().max(160).optional().or(z.literal("")),
   aceitaNotificacoes: z.boolean().optional(),
   aceiteTermos: z.literal(true, { message: "Você precisa aceitar os termos" }),
-  aceiteContato: z.literal(true, { message: "Autorize o contato para prosseguir" }),
+  aceiteContato: z.boolean().optional(),
 };
 
 export function isValidCPF(raw: string): boolean {
@@ -72,8 +72,6 @@ export const cadastroSchema = z
       if (!data.porte) ctx.addIssue({ code: "custom", path: ["porte"], message: "Selecione o porte" });
       if (!data.segmento || data.segmento.trim().length < 2)
         ctx.addIssue({ code: "custom", path: ["segmento"], message: "Informe o segmento" });
-      if (!data.cargo || data.cargo.trim().length < 2)
-        ctx.addIssue({ code: "custom", path: ["cargo"], message: "Informe o cargo" });
       if (!data.cpf || !isValidCPF(data.cpf))
         ctx.addIssue({ code: "custom", path: ["cpf"], message: "CPF inválido" });
     }

@@ -2,45 +2,84 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
   AlertCircle,
-  ArrowDown,
+  Bell,
   Building2,
+  CalendarClock,
+  Check,
   CheckCircle2,
   Copy,
-  ExternalLink,
-  FileCheck,
+  CreditCard,
   FileUp,
+  FolderOpen,
   Headphones,
-  KeyRound,
+  History,
+  LayoutDashboard,
   Loader2,
   Lock,
-  MousePointerClick,
+  PlayCircle,
+  Search,
+  Shield,
   ShieldCheck,
   Sparkles,
-  Clock,
   Star,
+  TrendingUp,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { trackConversion } from "@/lib/utm";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
-const FORNECEDOR_PORTAL_URL = "https://fornecedor.cadbrasil.com.br";
+const FORNECEDOR_AUTH_URL = "https://fornecedor.cadbrasil.com.br/auth";
+const PROGRESS_PERCENT = 60;
 
-const highlights = [
-  { icon: Sparkles, title: "Atendimento especializado", desc: "Time dedicado a SICAF e licitações" },
-  { icon: Clock, title: "Processo rápido", desc: "Cadastro em poucos minutos" },
-  { icon: Headphones, title: "Suporte profissional", desc: "Consultoria humana e ágil" },
-  { icon: Lock, title: "Dados seguros", desc: "Conformidade com a LGPD" },
-];
+const PROGRESS_STEPS = [
+  { label: "Cadastro da Empresa", done: true },
+  { label: "Criação da Conta", done: true },
+  { label: "Diagnóstico Inicial", done: true },
+  { label: "Envio dos Documentos", done: false },
+  { label: "Ativação da Licença", done: false },
+  { label: "Análise Especializada", done: false },
+] as const;
 
-const benefits = [
-  "Especialistas em SICAF e licitações",
-  "Suporte consultivo personalizado",
-  "Atendimento ágil e prioritário",
-  "Processo simplificado de ponta a ponta",
-];
+const REWARD_ITEMS = [
+  "Nossa equipe analisará sua documentação",
+  "Identificaremos pendências cadastrais",
+  "Verificaremos requisitos do SICAF",
+  "Validaremos certidões e documentos",
+  "Orientaremos sua empresa em cada etapa",
+  "Você acompanhará tudo pela plataforma",
+] as const;
+
+const LICENSE_BENEFITS = [
+  { icon: LayoutDashboard, label: "Plataforma CADBRASIL" },
+  { icon: FolderOpen, label: "Gestão documental" },
+  { icon: ShieldCheck, label: "Credenciamento SICAF" },
+  { icon: CalendarClock, label: "Monitoramento de vencimentos" },
+  { icon: Search, label: "Consulta automática de certidões" },
+  { icon: Bell, label: "Alertas inteligentes" },
+  { icon: History, label: "Histórico documental" },
+  { icon: Headphones, label: "Atendimento especializado" },
+  { icon: Wrench, label: "Suporte técnico" },
+  { icon: TrendingUp, label: "Acompanhamento contínuo" },
+] as const;
+
+const SECURITY_ITEMS = [
+  "Ambiente seguro",
+  "Conexão criptografada",
+  "Armazenamento protegido",
+  "Acesso restrito",
+] as const;
 
 type CadastroData = {
   protocolo: string;
@@ -67,139 +106,393 @@ type CadastroData = {
   } | null;
 };
 
-function SuccessCard({ data }: { data: CadastroData }) {
-  return (
-    <div className="bg-card rounded-3xl shadow-elevated border border-border/60 p-6 md:p-8 animate-fade-up">
-      <div className="flex flex-col items-center text-center">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-success/10">
-          <CheckCircle2 className="h-8 w-8 text-success" />
-        </div>
-        <h2 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">
-          Cadastro enviado com sucesso
-        </h2>
-        <p className="text-sm text-muted-foreground max-w-lg text-balance mb-5 leading-relaxed">
-          Para agilizar: entre no portal com seu e-mail e senha,{" "}
-          <strong className="font-semibold text-foreground">quite a taxa da licença</strong> e envie os documentos.
-          Tudo é feito na plataforma CADBRASIL.
-        </p>
+function resolveAuthUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_PORTAL_URL?.trim();
+  if (raw && raw.length > 0) {
+    const base = raw.replace(/\/$/, "");
+    return base.endsWith("/auth") ? base : `${base}/auth`;
+  }
+  return FORNECEDOR_AUTH_URL;
+}
 
-        <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-border bg-muted/25 px-3 py-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protocolo</span>
-          <code className="font-mono text-xs md:text-sm font-semibold text-foreground tracking-tight">{data.protocolo}</code>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(data.protocolo);
-              toast.success("Protocolo copiado!");
-            }}
-            className="rounded-md p-1.5 text-primary hover:bg-primary-soft transition-smooth"
-            aria-label="Copiar protocolo"
+function buildAuthUrl(email?: string): string {
+  const base = resolveAuthUrl();
+  if (!email?.trim()) return base;
+  try {
+    const url = new URL(base);
+    url.searchParams.set("email", email.trim());
+    return url.toString();
+  } catch {
+    return base;
+  }
+}
+
+function goToPortal(data: CadastroData) {
+  trackConversion("continuar_portal_cadastro", 985, {
+    protocolo: data.protocolo,
+    tipo_pessoa: data.tipoPessoa,
+  });
+  window.open(buildAuthUrl(data.emailAcesso), "_blank", "noopener,noreferrer");
+}
+
+function ContinueCta({
+  data,
+  className,
+  compact,
+}: {
+  data: CadastroData;
+  className?: string;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => goToPortal(data)}
+      className={cn(
+        "w-full rounded-2xl bg-gradient-cta text-primary-foreground shadow-glow transition-smooth hover:scale-[1.01] hover:shadow-elevated focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25",
+        compact ? "px-4 py-3.5" : "px-6 py-5",
+        className
+      )}
+    >
+      <span className={cn("block font-display font-bold tracking-tight", compact ? "text-base" : "text-lg sm:text-xl")}>
+        🚀 CONTINUAR AGORA
+      </span>
+      <span className={cn("block text-primary-foreground/85 mt-0.5", compact ? "text-[11px]" : "text-xs sm:text-sm")}>
+        Enviar documentos e ativar minha licença
+      </span>
+    </button>
+  );
+}
+
+function PlatformTourDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="w-full rounded-2xl border border-border bg-card px-5 py-4 text-sm font-semibold text-foreground shadow-soft transition-smooth hover:border-primary/30 hover:bg-primary-soft/40"
+        >
+          👀 Conhecer a plataforma primeiro
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl">Conheça a plataforma CADBRASIL</DialogTitle>
+          <DialogDescription>
+            Veja como funciona o portal do fornecedor antes de enviar seus documentos.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+            {[
+              "Painel centralizado com status do seu cadastro SICAF",
+              "Envio de documentos e acompanhamento em tempo real",
+              "Pagamento da licença e alertas de vencimento",
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-2.5 text-sm text-foreground/90">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <Link
+            href="/procedimentos-cadbrasil"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary-soft px-4 py-3 text-sm font-semibold text-primary transition-smooth hover:bg-primary-soft/80"
           >
-            <Copy className="h-3.5 w-3.5" />
-          </button>
+            <PlayCircle className="h-4 w-4" />
+            Ver tour passo a passo da plataforma
+          </Link>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">Guarde o protocolo para falar com o suporte, se precisar.</p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ProgressSection() {
+  return (
+    <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-soft">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-sm font-semibold text-foreground">Seu progresso</p>
+        <span className="text-xs font-bold text-primary bg-primary-soft px-2.5 py-1 rounded-full">
+          {PROGRESS_PERCENT}%
+        </span>
       </div>
+      <div className="h-2.5 rounded-full bg-muted overflow-hidden mb-4">
+        <div
+          className="h-full rounded-full bg-gradient-cta transition-all duration-700"
+          style={{ width: `${PROGRESS_PERCENT}%` }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Você concluiu <strong className="text-foreground font-semibold">{PROGRESS_PERCENT}%</strong> do processo.
+      </p>
+      <ul className="space-y-2">
+        {PROGRESS_STEPS.map((step) => (
+          <li key={step.label} className="flex items-center gap-2.5 text-sm">
+            <span
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                step.done
+                  ? "bg-success/15 text-success"
+                  : "border border-border bg-muted/50 text-muted-foreground"
+              )}
+            >
+              {step.done ? <Check className="h-3 w-3" strokeWidth={3} /> : ""}
+            </span>
+            <span className={cn(step.done ? "text-foreground font-medium" : "text-muted-foreground")}>
+              {step.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
-      <div className="mt-6 space-y-3">
-        <div className="flex flex-col items-center gap-1.5 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary-soft px-3.5 py-1.5 text-xs font-semibold text-primary">
-            <MousePointerClick className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            Próximo passo — clique no botão abaixo
+function SuccessView({ data }: { data: CadastroData }) {
+  const displayName =
+    data.tipoPessoa === "PJ" && data.razaoSocial ? data.razaoSocial : data.nome;
+
+  return (
+    <>
+      <div className="space-y-5 sm:space-y-6 pb-28 md:pb-8">
+        {/* Cabeçalho */}
+        <header className="text-center space-y-3 animate-fade-up">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-success/10 ring-4 ring-success/10">
+            <CheckCircle2 className="h-9 w-9 text-success" />
           </div>
-          <ArrowDown className="h-4 w-4 text-primary animate-bounce" aria-hidden />
-        </div>
+          <div className="space-y-2">
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-foreground text-balance leading-tight">
+              🎉 Sua conta foi criada com sucesso!
+            </h1>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed text-balance" data-seo-speakable="intro">
+              Sua empresa já possui acesso à plataforma CADBRASIL.
+              <span className="block mt-1">
+                Agora faltam apenas alguns minutos para iniciarmos sua análise documental.
+              </span>
+            </p>
+          </div>
+          {displayName && (
+            <p className="text-xs text-muted-foreground">
+              {data.tipoPessoa === "PJ" ? "Empresa" : "Cadastro"}:{" "}
+              <span className="font-medium text-foreground">{displayName}</span>
+            </p>
+          )}
+        </header>
 
-        <a
-          href={FORNECEDOR_PORTAL_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group relative flex flex-col rounded-2xl border-2 border-primary/40 bg-gradient-soft p-5 pt-6 text-left shadow-soft ring-2 ring-primary/20 ring-offset-2 ring-offset-card transition-smooth hover:border-primary/60 hover:shadow-card hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
+        <ProgressSection />
+
+        {/* Próximos passos — destaque antes do scroll longo */}
+        <section
+          className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary-soft/60 to-card p-4 sm:p-5 shadow-soft"
+          data-seo-speakable="next-steps"
         >
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-full bg-gradient-cta px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-foreground shadow-soft whitespace-nowrap">
-            <MousePointerClick className="h-3 w-3 shrink-0" aria-hidden />
-            Clique aqui
-          </span>
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-cta text-primary-foreground shadow-soft">
-            <FileUp className="h-5 w-5" />
-          </div>
-          <p className="font-display text-base font-bold text-foreground">Enviar documentos</p>
-          <p className="mt-2 flex-1 text-xs text-muted-foreground leading-relaxed">
-            Acesse o portal do fornecedor para enviar a documentação solicitada e concluir o pagamento da licença.
-            Use o e-mail e a senha definidos no cadastro.
+          <h2 className="font-display text-lg font-bold text-foreground mb-1">
+            Faltam apenas 2 passos para iniciar seu processo
+          </h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            Você já fez a maior parte. Conclua agora e não perca o progresso.
           </p>
-          <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-            Clique para abrir o portal — documentos e pagamento
-            <ExternalLink className="h-4 w-4 opacity-80 transition-transform group-hover:translate-x-0.5" />
-          </span>
-        </a>
-      </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border/80 bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-sm">📂</span>
+                <p className="text-sm font-bold text-foreground">Passo 1 — Enviar documentação</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Envie os documentos solicitados para análise.
+              </p>
+              <p className="text-[11px] text-primary font-medium mt-2">Tempo estimado: 2 a 5 minutos</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-card p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-soft text-sm">💳</span>
+                <p className="text-sm font-bold text-foreground">Passo 2 — Ativar sua licença</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Conclua a ativação da plataforma CADBRASIL.
+              </p>
+              <p className="text-[11px] text-primary font-medium mt-2">Tempo estimado: menos de 1 minuto</p>
+            </div>
+          </div>
+        </section>
 
-      <div className="mt-5 flex items-start justify-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-center sm:text-left">
-        <KeyRound className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          <span className="font-semibold text-foreground">Acesso ao portal:</span> use o e-mail{" "}
-          <span className="font-medium text-foreground">{data.emailAcesso}</span> e a senha definida no cadastro.
-          <span className="hidden sm:inline"> </span>
-          <span className="block sm:inline text-muted-foreground/90">
-            Conexão segura · pagamento e envio de arquivos no mesmo ambiente.
-          </span>
+        {/* CTAs desktop — visíveis cedo no mobile via sticky também */}
+        <div className="hidden md:block space-y-3">
+          <ContinueCta data={data} />
+          <PlatformTourDialog />
+        </div>
+
+        {/* O que acontece após */}
+        <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-soft">
+          <h2 className="font-display text-base font-bold text-foreground mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            O que acontece após a conclusão?
+          </h2>
+          <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-2">
+            {REWARD_ITEMS.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm text-foreground/90">
+                <Check className="h-4 w-4 shrink-0 text-success mt-0.5" strokeWidth={2.5} />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-xs text-muted-foreground border-t border-border/60 pt-3">
+            Tempo médio para início da análise:{" "}
+            <strong className="text-foreground">menos de 24 horas úteis</strong>.
+          </p>
+        </section>
+
+        {/* Licença */}
+        <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-soft">
+          <h2 className="font-display text-base font-bold text-foreground mb-3">Sua licença inclui:</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {LICENSE_BENEFITS.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs font-medium text-foreground leading-tight">{label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Segurança */}
+        <section className="rounded-2xl border border-success/20 bg-success/5 p-4 sm:p-5">
+          <h2 className="font-display text-base font-bold text-foreground mb-3 flex items-center gap-2">
+            <Shield className="h-4 w-4 text-success" />
+            Seus documentos estão protegidos
+          </h2>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {SECURITY_ITEMS.map((item) => (
+              <div key={item} className="flex items-center gap-2 text-xs text-foreground/90">
+                <Lock className="h-3.5 w-3.5 text-success shrink-0" />
+                {item}
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Seus documentos serão utilizados exclusivamente para análise e gestão cadastral.
+          </p>
+        </section>
+
+        {/* Urgência leve */}
+        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5 sm:px-5">
+          <p className="text-sm font-semibold text-foreground">
+            Quanto antes concluir, mais rápido sua análise poderá começar
+          </p>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Empresas que enviam sua documentação imediatamente costumam receber retorno mais rápido da equipe
+            especializada.
+          </p>
+        </section>
+
+        {/* Confiança */}
+        <section className="rounded-2xl border border-border/70 bg-card p-4 sm:p-5 shadow-soft">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-sm text-foreground leading-relaxed">
+                Mais de <strong className="font-bold">2.500 empresas</strong> já utilizaram a plataforma CADBRASIL
+                para auxiliar seus processos cadastrais.
+              </p>
+              <div className="flex items-center gap-1 mt-2">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                ))}
+                <span className="text-xs text-muted-foreground ml-1">Atendimento especializado SICAF</span>
+              </div>
+            </div>
+            <div className="shrink-0 text-center sm:text-right">
+              <p className="font-display text-2xl font-extrabold text-foreground leading-none">
+                15<span className="text-primary">+</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">anos de mercado</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Acesso + protocolo */}
+        <section className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 space-y-2">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-semibold text-foreground">Acesso ao portal:</span> use o e-mail{" "}
+            <span className="font-medium text-foreground">{data.emailAcesso}</span> e a senha definida no cadastro.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protocolo</span>
+            <code className="font-mono text-xs font-semibold text-foreground">{data.protocolo}</code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(data.protocolo);
+                toast.success("Protocolo copiado!");
+              }}
+              className="rounded-md p-1 text-primary hover:bg-primary-soft transition-smooth"
+              aria-label="Copiar protocolo"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </section>
+
+        <div className="hidden md:block space-y-3 pt-1">
+          <ContinueCta data={data} />
+          <PlatformTourDialog />
+        </div>
+
+        <p className="text-center">
+          <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-smooth">
+            Fazer novo cadastro
+          </Link>
         </p>
       </div>
 
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground text-center text-balance">
-        <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-success" />
-        Pagamento e envio de documentos no portal oficial CADBRASIL
-      </p>
+      {/* CTA fixo mobile */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/80 bg-card/95 backdrop-blur-xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden shadow-elevated">
+        <ContinueCta data={data} compact />
+        <div className="mt-2">
+          <PlatformTourDialog />
+        </div>
+      </div>
+    </>
+  );
+}
 
-      <div className="mt-5 flex justify-center">
-        <Link
-          href="/"
-          className="text-sm text-muted-foreground hover:text-foreground hover:bg-muted px-4 py-2 rounded-lg transition-smooth"
-        >
-          Fazer novo cadastro
-        </Link>
+function LoadingView() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-5 animate-fade-up">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+        <Loader2 className="h-8 w-8 text-primary animate-spin" />
+      </div>
+      <div className="text-center space-y-1.5">
+        <h2 className="font-display text-lg font-bold text-foreground">Preparando sua área...</h2>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          Estamos carregando os dados do seu cadastro. Aguarde um instante.
+        </p>
       </div>
     </div>
   );
 }
 
-function LoadingCard() {
+function ErrorView({ message }: { message: string }) {
   return (
-    <div className="bg-card rounded-3xl shadow-elevated border border-border/60 p-6 md:p-8 animate-fade-up">
-      <div className="flex flex-col items-center justify-center py-16 gap-5">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Loader2 className="h-8 w-8 text-primary animate-spin" />
-        </div>
-        <div className="text-center space-y-1.5">
-          <h2 className="font-display text-lg font-bold text-foreground">Processando informações...</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            Estamos carregando os dados do seu cadastro. Aguarde um instante.
-          </p>
-        </div>
+    <div className="flex flex-col items-center text-center gap-4 py-16 animate-fade-up">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+        <AlertCircle className="h-8 w-8 text-destructive" />
       </div>
-    </div>
-  );
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <div className="bg-card rounded-3xl shadow-elevated border border-destructive/30 p-6 md:p-8 animate-fade-up">
-      <div className="flex flex-col items-center text-center gap-4 py-8">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-        </div>
-        <div>
-          <h2 className="font-display text-xl font-bold text-foreground mb-2">Protocolo não encontrado</h2>
-          <p className="text-sm text-muted-foreground max-w-md">{message}</p>
-        </div>
-        <Link
-          href="/"
-          className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
-        >
-          Voltar para a página inicial
-        </Link>
+      <div>
+        <h2 className="font-display text-xl font-bold text-foreground mb-2">Protocolo não encontrado</h2>
+        <p className="text-sm text-muted-foreground max-w-md">{message}</p>
       </div>
+      <Link
+        href="/"
+        className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
+      >
+        Voltar para a página inicial
+      </Link>
     </div>
   );
 }
@@ -260,191 +553,50 @@ export default function ConclusaoContent() {
     }
   }, [data, conversionFired]);
 
-  const rightContent = loading
-    ? <LoadingCard />
-    : error
-      ? <ErrorCard message={error} />
-      : data
-        ? <SuccessCard data={data} />
-        : <LoadingCard />;
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container max-w-7xl flex items-center justify-between h-16">
+        <div className="container max-w-3xl flex items-center justify-between h-14 sm:h-16 px-4">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-soft">
-              <Building2 className="w-5 h-5 text-primary-foreground" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-soft">
+              <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground" />
             </div>
             <div className="leading-tight">
-              <p className="font-display font-extrabold text-foreground tracking-tight">CADBRASIL</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-widest">SICAF · Licitações</p>
+              <p className="font-display font-extrabold text-foreground text-sm sm:text-base tracking-tight">CADBRASIL</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-widest">SICAF · Licitações</p>
             </div>
           </Link>
-          <div className="hidden md:flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <ShieldCheck className="w-4 h-4 text-success" />
-            Conexão segura · Dados protegidos pela LGPD
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-medium text-muted-foreground">
+            <ShieldCheck className="w-3.5 h-3.5 text-success shrink-0" />
+            <span className="hidden sm:inline">Ambiente seguro</span>
+            <span className="sm:hidden">Seguro</span>
           </div>
         </div>
       </header>
 
       <main className="relative">
-        <div className="absolute inset-x-0 top-0 h-[520px] bg-grid opacity-50 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
+        <div className="absolute inset-x-0 top-0 h-64 bg-grid opacity-40 pointer-events-none [mask-image:linear-gradient(to_bottom,black,transparent)]" />
 
-        <section className="relative container max-w-7xl pt-10 md:pt-16 pb-16 md:pb-24">
-          <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-16 items-start">
-            <div className="space-y-8 animate-fade-up">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary-soft border border-primary/10 text-xs font-semibold text-primary">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-primary-glow opacity-70 animate-ping" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-glow" />
-                </span>
-                Atendimento ativo agora
-              </div>
-
-              <div className="space-y-5">
-                <h1 className="font-display font-extrabold text-foreground text-balance text-4xl md:text-5xl lg:text-[3.4rem] leading-[1.05]">
-                  Assistente Digital para Cadastramento no{" "}
-                  <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-                    SICAF
-                  </span>{" "}
-                  e{" "}
-                  <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-                    Comprasnet
-                  </span>
-                </h1>
-                <p className="text-lg text-muted-foreground text-balance max-w-xl leading-relaxed">
-                  Cadastre sua empresa com a <strong className="text-foreground font-semibold">CADBRASIL</strong> e venda para o Governo Federal com segurança. Habilitação no{" "}
-                  <strong className="text-foreground font-semibold">SICAF</strong>, suporte completo no{" "}
-                  <strong className="text-foreground font-semibold">Comprasnet</strong> e participação em licitações públicas.
-                </p>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-3 max-w-xl">
-                {highlights.map((h) => (
-                  <div
-                    key={h.title}
-                    className="group flex items-start gap-3 p-4 rounded-2xl bg-card border border-border/70 shadow-soft hover:shadow-card hover:border-primary-glow/40 transition-smooth"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0 group-hover:bg-gradient-primary group-hover:text-primary-foreground transition-smooth">
-                      <h.icon className="w-[18px] h-[18px]" strokeWidth={2.2} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground leading-tight">{h.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{h.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="hidden lg:flex items-center gap-6 pt-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex -space-x-2">
-                    {[0, 1, 2, 3].map((i) => (
-                      <div
-                        key={i}
-                        className="w-9 h-9 rounded-full border-2 border-background bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-[10px] font-bold text-primary-foreground"
-                      >
-                        {["JM", "RS", "CL", "AP"][i]}
-                      </div>
-                    ))}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-0.5">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">+2.500 empresas atendidas</p>
-                  </div>
-                </div>
-                <div className="h-10 w-px bg-border" />
-                <div>
-                  <p className="text-2xl font-display font-extrabold text-foreground leading-none">
-                    15<span className="text-primary-glow">+</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">anos de mercado</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative animate-fade-up" style={{ animationDelay: "0.1s" }}>
-              <div className="absolute -inset-6 -z-10 rounded-[2rem] opacity-60 blur-2xl overflow-hidden min-h-[280px]">
-                <Image
-                  src="/hero-bg.jpg"
-                  alt=""
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 480px"
-                  className="object-cover rounded-[2rem]"
-                  aria-hidden
-                  priority
-                />
-              </div>
-
-              {rightContent}
-
-              <p className="text-xs text-muted-foreground text-center mt-4 flex items-center justify-center gap-1.5">
-                <Lock className="w-3.5 h-3.5" />
-                Seus dados são enviados com segurança e analisados por nossa equipe.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-gradient-hero relative overflow-hidden">
-          <div className="absolute inset-0 bg-grid opacity-20" />
-          <div className="container max-w-7xl py-14 md:py-20 relative">
-            <div className="grid md:grid-cols-[1fr_1.4fr] gap-10 items-center">
-              <div className="text-primary-foreground space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary-foreground/70">Por que CADBRASIL</p>
-                <h2 className="font-display font-extrabold text-3xl md:text-4xl text-balance leading-tight">
-                  Solidez institucional. Agilidade de uma plataforma moderna.
-                </h2>
-                <p className="text-primary-foreground/80 max-w-md">
-                  Há mais de uma década ajudando empresas a vencer licitações com processos claros, suporte humano e tecnologia.
-                </p>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {benefits.map((b) => (
-                  <div
-                    key={b}
-                    className="flex items-center gap-3 p-4 rounded-2xl bg-primary-foreground/5 border border-primary-foreground/10 backdrop-blur-sm"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-primary-glow shrink-0" />
-                    <p className="text-sm font-medium text-primary-foreground">{b}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="container max-w-7xl py-12">
-          <div className="grid md:grid-cols-3 gap-4">
-            {[
-              { icon: ShieldCheck, t: "Segurança em primeiro lugar", d: "Criptografia em trânsito e conformidade total com a LGPD." },
-              { icon: Headphones, t: "Atendimento humano", d: "Especialistas reais conduzem seu processo do início ao fim." },
-              { icon: FileCheck, t: "Autoridade no SICAF", d: "Anos de experiência com cadastros, recursos e atualizações." },
-            ].map((c) => (
-              <div key={c.t} className="p-6 rounded-2xl bg-card border border-border/70 shadow-soft">
-                <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3">
-                  <c.icon className="w-5 h-5" />
-                </div>
-                <p className="font-display font-bold text-foreground">{c.t}</p>
-                <p className="text-sm text-muted-foreground mt-1">{c.d}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="container max-w-3xl relative px-4 pt-6 sm:pt-10 pb-8">
+          {loading ? (
+            <LoadingView />
+          ) : error ? (
+            <ErrorView message={error} />
+          ) : data ? (
+            <SuccessView data={data} />
+          ) : (
+            <LoadingView />
+          )}
+        </div>
       </main>
 
-      <footer className="border-t border-border/60 bg-card">
-        <div className="container max-w-7xl py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
+      <footer className="border-t border-border/60 bg-card hidden md:block">
+        <div className="container max-w-3xl py-5 px-4 flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} CADBRASIL · Todos os direitos reservados</p>
-          <div className="flex items-center gap-5">
-            <Link href="/" className="hover:text-foreground transition-smooth">
-              Voltar para página inicial
-            </Link>
+          <div className="flex items-center gap-1.5">
+            <FileUp className="w-3.5 h-3.5" />
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Documentos e licença no portal oficial</span>
           </div>
         </div>
       </footer>

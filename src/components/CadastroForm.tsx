@@ -25,14 +25,62 @@ import {
   ExternalLink,
   KeyRound,
   CreditCard,
+  ScanSearch,
+  CircleX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const COMPLEMENTO_MAX_LENGTH = 60;
+
+function sanitizeComplemento(raw: string): string {
+  const normalized = raw
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, COMPLEMENTO_MAX_LENGTH);
+
+  if (!normalized || /^[\s*\-./]+$/.test(normalized)) return "";
+  return normalized;
+}
+
+function getCpfValidationState(cpf: string | undefined) {
+  const digits = cpf?.replace(/\D/g, "") || "";
+  const complete = digits.length === 11;
+  return {
+    complete,
+    valid: complete && isValidCPF(cpf || ""),
+  };
+}
+
+function CpfInputStatusIcon({
+  loading,
+  cpf,
+}: {
+  loading?: boolean;
+  cpf: string | undefined;
+}) {
+  const { complete, valid } = getCpfValidationState(cpf);
+
+  if (loading) {
+    return (
+      <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
+    );
+  }
+  if (!complete) return null;
+  if (valid) {
+    return (
+      <CheckCircle2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-success" />
+    );
+  }
+  return (
+    <CircleX className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-destructive" />
+  );
+}
 import { getTrackingParamsForPayload } from "@/lib/tracking";
 import { trackConversion } from "@/lib/utm";
 import { Button } from "@/components/ui/button";
 import { PagamentoTaxaDialog, type PagamentoTaxaDados } from "@/components/PagamentoTaxaDialog";
-import { SegmentOpportunityModal } from "@/components/SegmentOpportunityModal";
-import { estimateLicitacoesForSegment } from "@/lib/segment-opportunity";
+import { SicafAnalysisModal, type SicafAnalysisCompany } from "@/components/SicafAnalysisModal";
 import {
   Dialog,
   DialogContent,
@@ -276,7 +324,7 @@ function PrivacyPolicyContent() {
         </div>
         <div>
           <strong>Dados do Representante</strong>
-          <p>Nome completo, CPF, cargo, telefone, email.</p>
+          <p>Nome completo, CPF, telefone, email.</p>
         </div>
         <div>
           <strong>Dados de Licitação</strong>
@@ -469,43 +517,40 @@ export function CadastroForm() {
   const [existingSupplier, setExistingSupplier] = useState<ExistingSupplier | null>(null);
   const [existingSupplierModalOpen, setExistingSupplierModalOpen] = useState(false);
   const [pagamentoDialogOpen, setPagamentoDialogOpen] = useState(false);
-  const [segmentModalOpen, setSegmentModalOpen] = useState(false);
-  const [segmentOpportunity, setSegmentOpportunity] = useState<{
-    segmento: string;
-    licitacoesCount: number;
-  } | null>(null);
+  const [sicafAnalysisOpen, setSicafAnalysisOpen] = useState(false);
+  const [analysisCompanySnapshot, setAnalysisCompanySnapshot] = useState<SicafAnalysisCompany | null>(null);
 
   const form = useForm<CadastroData>({
     resolver: zodResolver(cadastroSchema),
     mode: "onTouched",
+    shouldUnregister: false,
     defaultValues: {
       tipoPessoa: undefined as unknown as "PJ",
       razaoSocial: "", nomeFantasia: "", cnpj: "", inscricaoEstadual: "",
       porte: "", segmento: "",
       nomeResponsavel: "", cpf: "", cargo: "", telefone: "", email: "",
       cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
-      servico: "Novo Cadastro SICAF", possuiSicaf: "", prioritario: "", observacoes: "",
+      servico: "Novo Cadastro SICAF", possuiSicaf: "nao", prioritario: "nao", observacoes: "",
       senha: "", confirmarSenha: "", emailAcesso: "", aceitaNotificacoes: false,
       aceiteTermos: undefined as unknown as true,
-      aceiteContato: undefined as unknown as true,
     },
   });
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger } = form;
+  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger, getValues, getFieldState } = form;
   const values = watch();
   const tipoPessoa = values.tipoPessoa;
 
   const STEP_FIELDS: Record<number, (keyof CadastroData)[]> = {
     0: ["tipoPessoa"],
     1: tipoPessoa === "PJ"
-      ? ["cnpj", "razaoSocial", "nomeFantasia", "inscricaoEstadual", "porte", "segmento"]
+      ? ["cnpj", "razaoSocial", "porte", "segmento"]
       : ["cpf", "nomeResponsavel"],
     2: tipoPessoa === "PJ"
-      ? ["nomeResponsavel", "cpf", "cargo", "telefone", "email"]
+      ? ["nomeResponsavel", "cpf", "telefone", "email"]
       : ["telefone", "email"],
     3: ["cep", "rua", "numero", "complemento", "bairro", "cidade", "estado"],
-    4: ["servico", "possuiSicaf", "prioritario", "observacoes"],
-    5: ["senha", "confirmarSenha", "emailAcesso", "aceiteTermos", "aceiteContato"],
+    4: ["servico", "observacoes"],
+    5: ["senha", "confirmarSenha", "emailAcesso", "aceiteTermos"],
   };
 
   const resetExistingSupplierIfDocumentChanged = (documento: string) => {
@@ -591,14 +636,13 @@ export function CadastroForm() {
   const resetCnpjCompanyState = () => {
     setCnpjFetched(false);
     setCnpjManualFill(false);
-    setSegmentModalOpen(false);
-    setSegmentOpportunity(null);
+    setSicafAnalysisOpen(false);
     clearCompanyFields();
   };
 
-  const lookupCNPJ = async (raw: string) => {
+  const lookupCNPJ = async (raw: string): Promise<SicafAnalysisCompany | null> => {
     const cnpj = raw.replace(/\D/g, "");
-    if (cnpj.length !== 14) return;
+    if (cnpj.length !== 14) return null;
     setCnpjLoading(true);
     setCnpjFetched(false);
     setCnpjManualFill(false);
@@ -606,6 +650,8 @@ export function CadastroForm() {
       const result = await lookupCnpjAction(cnpj);
       if (result.ok === false) {
         clearCompanyFields();
+        setValue("porte", "MEDIA", { shouldValidate: true });
+        setValue("segmento", "Atividade empresarial", { shouldValidate: true });
         setCnpjFetched(false);
         setCnpjManualFill(true);
         if (result.error === "Serviço de consulta indisponível") {
@@ -613,30 +659,24 @@ export function CadastroForm() {
         } else {
           toast.info("CNPJ não localizado. Preencha os dados manualmente.");
         }
-        return;
+        return {
+          cnpj: raw,
+          razaoSocial: "",
+          segmento: "",
+          cnpjFetched: false,
+        };
       }
       const d = result.data;
       setValue("razaoSocial", d.razao_social || "", { shouldValidate: true });
       setValue("nomeFantasia", d.nome_fantasia || "", { shouldValidate: true });
       setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
       setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
-      setValue("segmento", d.cnae_fiscal_descricao || "", { shouldValidate: true });
-      const segmento = (d.cnae_fiscal_descricao || "").trim();
-      if (segmento) {
-        setSegmentOpportunity({
-          segmento,
-          licitacoesCount: estimateLicitacoesForSegment(segmento, cnpj),
-        });
-        setSegmentModalOpen(true);
-      } else {
-        setSegmentOpportunity(null);
-        setSegmentModalOpen(false);
-      }
+      setValue("segmento", d.cnae_fiscal_descricao?.trim() || "Atividade empresarial", { shouldValidate: true });
       // endereço
       if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
       setValue("rua", d.logradouro || "", { shouldValidate: true });
       setValue("numero", d.numero || "", { shouldValidate: true });
-      setValue("complemento", d.complemento || "", { shouldValidate: true });
+      setValue("complemento", sanitizeComplemento(d.complemento || ""), { shouldValidate: true });
       setValue("bairro", d.bairro || "", { shouldValidate: true });
       setValue("cidade", d.municipio || "", { shouldValidate: true });
       setValue("estado", (d.uf || "").toUpperCase(), { shouldValidate: true });
@@ -648,14 +688,63 @@ export function CadastroForm() {
       setCnpjManualFill(false);
       setCnpjFetched(true);
       toast.success("Dados preenchidos automaticamente pela Receita Federal");
+      return {
+        cnpj: raw,
+        razaoSocial: d.razao_social || "",
+        segmento: d.cnae_fiscal_descricao || "",
+        cnpjFetched: true,
+      };
     } catch {
       clearCompanyFields();
+      setValue("porte", "MEDIA", { shouldValidate: true });
+      setValue("segmento", "Atividade empresarial", { shouldValidate: true });
       setCnpjFetched(false);
       setCnpjManualFill(true);
       toast.info("Não foi possível consultar agora. Preencha manualmente.");
+      return {
+        cnpj: raw,
+        razaoSocial: "",
+        segmento: "",
+        cnpjFetched: false,
+      };
     } finally {
       setCnpjLoading(false);
     }
+  };
+
+  const handleAnalisarSicaf = async () => {
+    const cnpjRaw = values.cnpj || "";
+    const digits = cnpjRaw.replace(/\D/g, "");
+    if (digits.length !== 14) {
+      toast.info("Informe um CNPJ completo para analisar.");
+      return;
+    }
+    if (existingSupplier?.tipo === "CNPJ") return;
+    if (documentCheckLoading || cnpjLoading) {
+      toast.info("Aguarde a verificação do CNPJ.");
+      return;
+    }
+
+    let snapshot: SicafAnalysisCompany;
+    if (cnpjFetched || cnpjManualFill) {
+      snapshot = {
+        cnpj: cnpjRaw,
+        razaoSocial: values.razaoSocial || "",
+        segmento: values.segmento || "",
+        cnpjFetched,
+      };
+    } else {
+      const lookedUp = await lookupCNPJ(cnpjRaw);
+      snapshot = lookedUp ?? {
+        cnpj: cnpjRaw,
+        razaoSocial: "",
+        segmento: "",
+        cnpjFetched: false,
+      };
+    }
+
+    setAnalysisCompanySnapshot(snapshot);
+    setSicafAnalysisOpen(true);
   };
 
   const handleCnpjCompleted = async (raw: string) => {
@@ -685,6 +774,17 @@ export function CadastroForm() {
     }
   };
 
+  const ensurePjCompanyDefaults = () => {
+    if (tipoPessoa !== "PJ") return;
+    if (!getValues("porte")) {
+      setValue("porte", "MEDIA", { shouldValidate: true });
+    }
+    const segmento = getValues("segmento")?.trim() || "";
+    if (segmento.length < 2) {
+      setValue("segmento", "Atividade empresarial", { shouldValidate: true });
+    }
+  };
+
   const next = async () => {
     if (step === 0 && !tipoPessoa) {
       toast.error("Selecione CPF ou CNPJ para continuar");
@@ -695,9 +795,26 @@ export function CadastroForm() {
       toast.info("Fornecedor já cadastrado. Acesse a plataforma para continuar.");
       return;
     }
+    if (step === 1 && tipoPessoa === "PJ") {
+      const cnpjDigits = values.cnpj?.replace(/\D/g, "") || "";
+      if (cnpjDigits.length === 14) {
+        if (documentCheckLoading || cnpjLoading) {
+          toast.info("Aguarde a consulta do CNPJ.");
+          return;
+        }
+        if (!cnpjFetched && !cnpjManualFill) {
+          toast.info("Aguarde o carregamento dos dados do CNPJ.");
+          return;
+        }
+      }
+      ensurePjCompanyDefaults();
+    }
     const ok = await trigger(STEP_FIELDS[step]);
     if (!ok) {
-      toast.error("Verifique os campos destacados");
+      const firstError = STEP_FIELDS[step]
+        .map((field) => ({ field, message: getFieldState(field).error?.message }))
+        .find((item) => item.message);
+      toast.error(firstError?.message || "Verifique os campos destacados");
       return;
     }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -902,13 +1019,14 @@ export function CadastroForm() {
         supplier={existingSupplier}
       />
 
-      {segmentOpportunity ? (
-        <SegmentOpportunityModal
-          open={segmentModalOpen}
-          onOpenChange={setSegmentModalOpen}
-          segmento={segmentOpportunity.segmento}
-          licitacoesCount={segmentOpportunity.licitacoesCount}
-          onContinue={() => setSegmentModalOpen(false)}
+      {analysisCompanySnapshot ? (
+        <SicafAnalysisModal
+          open={sicafAnalysisOpen}
+          onOpenChange={setSicafAnalysisOpen}
+          company={analysisCompanySnapshot}
+          onRegularizar={() => {
+            toast.success("Continue o cadastro para regularizar sua empresa com a CADBRASIL.");
+          }}
         />
       ) : null}
 
@@ -1024,9 +1142,9 @@ export function CadastroForm() {
                     : cnpjLoading
                     ? "Consultando Receita Federal..."
                     : cnpjFetched
-                    ? "Dados preenchidos automaticamente. Confira e ajuste se necessário."
+                    ? "Dados obtidos da Receita Federal. Use o botão abaixo para analisar seu SICAF."
                     : cnpjManualFill
-                    ? "CNPJ não localizado. Preencha os dados da empresa manualmente."
+                    ? "CNPJ não localizado. Informe a razão social da empresa."
                     : "Digite o CNPJ completo. Buscaremos automaticamente os dados da empresa."
                 }
               >
@@ -1061,6 +1179,35 @@ export function CadastroForm() {
               </Field>
             </div>
 
+            {cnpjFetched &&
+              !cnpjManualFill &&
+              values.cnpj?.replace(/\D/g, "").length === 14 &&
+              existingSupplier?.tipo !== "CNPJ" &&
+              !documentCheckLoading &&
+              !cnpjLoading && (
+                <div className="md:col-span-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => void handleAnalisarSicaf()}
+                    className="group relative flex w-full items-center justify-center gap-4 overflow-hidden rounded-2xl bg-gradient-cta px-6 py-5 sm:py-6 text-primary-foreground shadow-glow transition-smooth hover:scale-[1.01] hover:shadow-elevated"
+                  >
+                    <span className="pointer-events-none absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-2 ring-white/25">
+                      <ScanSearch className="h-7 w-7" />
+                    </span>
+                    <span className="relative flex-1 text-left">
+                      <span className="block font-display text-lg sm:text-xl font-bold tracking-tight">
+                        Analisar meu SICAF
+                      </span>
+                      <span className="block text-sm text-primary-foreground/85 mt-1">
+                        Diagnóstico gratuito · Receita Federal, certidões e habilitação
+                      </span>
+                    </span>
+                    <ArrowRight className="relative h-6 w-6 shrink-0 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
+              )}
+
             {existingSupplier?.tipo === "CNPJ" && (
               <ExistingSupplierCard onOpen={() => setExistingSupplierModalOpen(true)} />
             )}
@@ -1075,7 +1222,7 @@ export function CadastroForm() {
                 ) : (
                   <div className="md:col-span-2 flex items-center gap-2 text-xs text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    CNPJ não localizado na Receita Federal · preencha os dados manualmente
+                    CNPJ não localizado na Receita Federal · informe a razão social
                   </div>
                 )}
                 <div className="md:col-span-2">
@@ -1083,25 +1230,6 @@ export function CadastroForm() {
                     <input className={inputClass} placeholder="Empresa LTDA" {...register("razaoSocial")} />
                   </Field>
                 </div>
-                <Field label="Nome fantasia" error={errors.nomeFantasia?.message}>
-                  <input className={inputClass} placeholder="Como é conhecida" {...register("nomeFantasia")} />
-                </Field>
-                <Field label="Inscrição estadual" error={errors.inscricaoEstadual?.message}>
-                  <input className={inputClass} placeholder="Opcional / isento" {...register("inscricaoEstadual")} />
-                </Field>
-                <Field label="Porte da empresa" required error={errors.porte?.message}>
-                  <select className={inputClass} {...register("porte")}>
-                    <option value="">Selecione...</option>
-                    <option value="MEI">MEI</option>
-                    <option value="ME">Microempresa (ME)</option>
-                    <option value="EPP">Pequeno porte (EPP)</option>
-                    <option value="MEDIA">Médio porte</option>
-                    <option value="GRANDE">Grande porte</option>
-                  </select>
-                </Field>
-                <Field label="Segmento de atuação" required error={errors.segmento?.message}>
-                  <input className={inputClass} placeholder="Ex.: Construção civil, TI..." {...register("segmento")} />
-                </Field>
               </>
             )}
           </div>
@@ -1110,16 +1238,13 @@ export function CadastroForm() {
         {step === 1 && tipoPessoa === "PF" && (
           <div key="s1pf" className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-slide-in">
             <Field
-              label="CPF"
+              label="CPF do responsável"
               required
-              error={(values.cpf?.replace(/\D/g, "").length === 11 && !isValidCPF(values.cpf)) ? "CPF inválido" : errors.cpf?.message}
               hint={
                 documentCheckLoading
                   ? "Verificando se este fornecedor já existe..."
                   : existingSupplier?.tipo === "CPF"
                   ? "Fornecedor já cadastrado. Acesse a plataforma para continuar."
-                  : values.cpf?.replace(/\D/g, "").length === 11 && isValidCPF(values.cpf)
-                  ? "CPF válido"
                   : undefined
               }
             >
@@ -1141,9 +1266,7 @@ export function CadastroForm() {
                     }
                   }}
                 />
-                {documentCheckLoading && (
-                  <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
-                )}
+                <CpfInputStatusIcon loading={documentCheckLoading} cpf={values.cpf} />
               </div>
             </Field>
             {existingSupplier?.tipo === "CPF" && (
@@ -1167,26 +1290,21 @@ export function CadastroForm() {
                     <input className={inputClass} placeholder="Nome do responsável" {...register("nomeResponsavel")} />
                   </Field>
                 </div>
-                <Field
-                  label="CPF"
-                  required
-                  error={(values.cpf?.replace(/\D/g, "").length === 11 && !isValidCPF(values.cpf)) ? "CPF inválido" : errors.cpf?.message}
-                  hint={values.cpf?.replace(/\D/g, "").length === 11 && isValidCPF(values.cpf) ? "CPF válido" : undefined}
-                >
-                  <input
-                    className={inputClass}
-                    placeholder="000.000.000-00"
-                    inputMode="numeric"
-                    value={values.cpf}
-                    onChange={(e) => {
-                      const masked = maskCPF(e.target.value);
-                      setValue("cpf", masked, { shouldValidate: true });
-                      if (masked.replace(/\D/g, "").length === 11) form.trigger("cpf");
-                    }}
-                  />
-                </Field>
-                <Field label="Cargo" required error={errors.cargo?.message}>
-                  <input className={inputClass} placeholder="Ex.: Diretor, sócio, gerente" {...register("cargo")} />
+                <Field label="CPF do responsável" required>
+                  <div className="relative">
+                    <input
+                      className={cn(inputClass, "pr-11")}
+                      placeholder="000.000.000-00"
+                      inputMode="numeric"
+                      value={values.cpf}
+                      onChange={(e) => {
+                        const masked = maskCPF(e.target.value);
+                        setValue("cpf", masked, { shouldValidate: true });
+                        if (masked.replace(/\D/g, "").length === 11) form.trigger("cpf");
+                      }}
+                    />
+                    <CpfInputStatusIcon cpf={values.cpf} />
+                  </div>
                 </Field>
               </>
             )}
@@ -1240,7 +1358,13 @@ export function CadastroForm() {
             </div>
             <div className="md:col-span-3">
               <Field label="Complemento" error={errors.complemento?.message}>
-                <input className={inputClass} placeholder="Sala, andar..." maxLength={60} {...register("complemento")} />
+                <input
+                  className={inputClass}
+                  placeholder="Sala, andar..."
+                  maxLength={COMPLEMENTO_MAX_LENGTH}
+                  value={values.complemento}
+                  onChange={(e) => setValue("complemento", sanitizeComplemento(e.target.value), { shouldValidate: true })}
+                />
               </Field>
             </div>
             <div className="md:col-span-3">
@@ -1270,53 +1394,60 @@ export function CadastroForm() {
         {/* STEP 4 — Atendimento */}
         {step === 4 && (
           <div key="s4" className="grid grid-cols-1 gap-5 animate-slide-in">
-            <Field label="Serviço de interesse" required error={errors.servico?.message}>
+            <div className="rounded-xl border border-primary/15 bg-primary-soft/40 p-4 shadow-soft">
+              <div className="mb-3">
+                <p className="font-display text-lg font-bold text-foreground">Serviço de interesse</p>
+                <p className="text-xs text-muted-foreground mt-1">Selecione o que você precisa.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {[
-                  "Novo Cadastro SICAF",
-                  "Atualizacao SICAF",
-                  "Suporte Documental",
-                  "Outro",
-                ].map((s) => {
-                  const active = values.servico === s;
+                  { label: "Novo Cadastro SICAF", desc: "Primeira habilitação no SICAF" },
+                  { label: "Atualizacao SICAF", desc: "Renovar ou corrigir cadastro" },
+                  { label: "Suporte Documental", desc: "Certidões e documentação" },
+                  { label: "Outro", desc: "Descreva nas observações" },
+                ].map(({ label, desc }) => {
+                  const active = values.servico === label;
                   return (
                     <button
                       type="button"
-                      key={s}
-                      onClick={() => setValue("servico", s, { shouldValidate: true })}
+                      key={label}
+                      onClick={() => setValue("servico", label, { shouldValidate: true })}
                       className={cn(
-                        "text-left px-4 py-3 rounded-xl border text-sm font-medium transition-smooth",
+                        "group w-full rounded-xl border px-3.5 py-3 text-left transition-smooth",
                         active
-                          ? "border-primary bg-primary-soft text-primary shadow-soft"
-                          : "border-input bg-card text-foreground/80 hover:border-primary-glow/60 hover:bg-primary-soft/40"
+                          ? "border-primary bg-gradient-cta text-primary-foreground shadow-soft"
+                          : "border-input bg-card text-foreground hover:border-primary/40 hover:bg-primary-soft/50"
                       )}
                     >
-                      <span className="flex items-center justify-between">
-                        {s}
-                        {active && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className={cn("block text-sm font-bold", !active && "text-foreground")}>
+                            {label}
+                          </span>
+                          <span
+                            className={cn(
+                              "block text-xs mt-0.5",
+                              active ? "text-primary-foreground/85" : "text-muted-foreground"
+                            )}
+                          >
+                            {desc}
+                          </span>
+                        </span>
+                        {active ? (
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        ) : (
+                          <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground opacity-60 group-hover:opacity-100" />
+                        )}
                       </span>
                     </button>
                   );
                 })}
               </div>
-            </Field>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field label="Possui cadastro no SICAF ?" required error={errors.possuiSicaf?.message}>
-                <select className={inputClass} {...register("possuiSicaf")}>
-                  <option value="">Selecione...</option>
-                  <option value="sim">Sim, está ativo</option>
-                  <option value="vencido">Sim, mas está vencido</option>
-                  <option value="nao">Não possuo</option>
-                </select>
-              </Field>
-              <Field label="Deseja atendimento prioritário?" required error={errors.prioritario?.message}>
-                <select className={inputClass} {...register("prioritario")}>
-                  <option value="">Selecione...</option>
-                  <option value="sim">Sim, com urgência</option>
-                  <option value="nao">Não, atendimento padrão</option>
-                </select>
-              </Field>
+              {errors.servico && (
+                <p className="text-xs text-destructive flex items-center gap-1 mt-3">
+                  <AlertCircle className="w-3 h-3" /> {errors.servico.message as string}
+                </p>
+              )}
             </div>
 
             <Field label="Observações" hint="Conte um pouco sobre sua necessidade (opcional)" error={errors.observacoes?.message}>
@@ -1419,23 +1550,6 @@ export function CadastroForm() {
                   <AlertCircle className="w-3 h-3" /> {errors.aceiteTermos.message as string}
                 </p>
               )}
-
-              <label className="flex items-start gap-3 p-4 rounded-xl border border-border hover:border-primary-glow/60 cursor-pointer transition-smooth">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 w-4 h-4 accent-primary"
-                  checked={values.aceiteContato === true}
-                  onChange={(e) => setValue("aceiteContato", e.target.checked as true, { shouldValidate: true })}
-                />
-                <span className="text-sm text-foreground/80">
-                  Autorizo a CADBRASIL a entrar em contato pelos canais informados (e-mail, telefone, WhatsApp).
-                </span>
-              </label>
-              {errors.aceiteContato && (
-                <p className="text-xs text-destructive flex items-center gap-1 pl-1">
-                  <AlertCircle className="w-3 h-3" /> {errors.aceiteContato.message as string}
-                </p>
-              )}
             </div>
 
             <div className="rounded-2xl border border-border bg-gradient-soft p-5">
@@ -1491,7 +1605,7 @@ export function CadastroForm() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
               </>
             ) : (
-              <>Quero iniciar meu atendimento <ArrowRight className="w-4 h-4 ml-1.5" /></>
+              <>INICIAR PROCESSO CADBRASIL <ArrowRight className="w-4 h-4 ml-1.5" /></>
             )}
           </Button>
         )}

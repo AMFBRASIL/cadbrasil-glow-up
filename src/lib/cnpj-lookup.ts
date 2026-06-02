@@ -64,7 +64,7 @@ function normalizePorte(descricao?: string | null): string {
   if (normalized.includes("pequeno")) return "EPP";
   if (normalized.includes("micro")) return "ME";
   if (normalized.includes("demais")) return "MEDIA";
-  return "";
+  return "MEDIA";
 }
 
 function buildLogradouro(tipo?: string | null, logradouro?: string | null): string {
