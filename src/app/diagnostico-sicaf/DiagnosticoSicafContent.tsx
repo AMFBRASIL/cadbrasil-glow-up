@@ -417,8 +417,6 @@ export default function DiagnosticoSicafContent() {
                 </div>
                 <a
                   href={regularizarHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
                 >
                   Regularizar meu SICAF
