@@ -4,7 +4,7 @@ import { getPool } from "@/lib/db";
 export async function assertProtocoloCadastro(protocolo: string): Promise<void> {
   const pool = getPool();
   const [rows] = await pool.query<RowDataPacket[]>(
-    "SELECT id FROM clientes WHERE ProtocoloCadbrasil = ? LIMIT 1",
+    "SELECT id FROM clientes WHERE protocolo_cadbrasil = ? LIMIT 1",
     [protocolo]
   );
   if (!Array.isArray(rows) || rows.length === 0) {

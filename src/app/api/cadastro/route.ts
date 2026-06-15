@@ -13,7 +13,6 @@ import {
   iniciaisNome,
   mapPorteSql,
   mapTipoServico,
-  montarEnderecoCliente,
   montarObservacoesCliente,
   novoSessionId,
   razaoSocialParaCliente,
@@ -46,15 +45,15 @@ async function insertClienteContato(
   email: string,
   telefone: string | null
 ): Promise<void> {
-  const sqlComCpf = `INSERT INTO cliente_contatos (cliente_id, nome, cpf, cargo, email, telefone, principal) VALUES (?,?,?,?,?,?,1)`;
-  const valsComCpf = [clienteId, nome, cpfDigits || null, cargo, email, telefone];
+  const sqlNovaBase = `INSERT INTO cliente_contatos (cliente_id, nome, cargo, email, telefone, principal) VALUES (?,?,?,?,?,1)`;
+  const valsNovaBase = [clienteId, nome, cargo, email, telefone];
   try {
-    await conn.execute<ResultSetHeader>(sqlComCpf, valsComCpf);
+    await conn.execute<ResultSetHeader>(sqlNovaBase, valsNovaBase);
   } catch (e) {
     if (!isMysqlBadField(e)) throw e;
     await conn.execute<ResultSetHeader>(
-      `INSERT INTO cliente_contatos (cliente_id, nome, cargo, email, telefone, principal) VALUES (?,?,?,?,?,1)`,
-      [clienteId, nome, cargo, email, telefone]
+      `INSERT INTO cliente_contatos (cliente_id, nome, cpf, cargo, email, telefone, principal) VALUES (?,?,?,?,?,?,1)`,
+      [clienteId, nome, cpfDigits || null, cargo, email, telefone]
     );
   }
 }
@@ -133,12 +132,10 @@ export async function POST(req: Request) {
   const tipoServico = mapTipoServico(data.servico);
   const protocolo = gerarProtocoloCadbrasil();
   const observacoesCliente = montarObservacoesCliente(protocolo, data, tipoServico);
-  const endereco = montarEnderecoCliente({
-    rua: data.rua,
-    numero: data.numero,
-    complemento: data.complemento,
-    bairro: data.bairro,
-  });
+  const enderecoRua = data.rua?.trim() || null;
+  const enderecoNumero = data.numero?.trim() || null;
+  const enderecoComplemento = data.complemento?.trim() || null;
+  const enderecoBairro = data.bairro?.trim() || null;
   const userAgent = req.headers.get("user-agent");
   const ipAssinatura =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -228,10 +225,11 @@ export async function POST(req: Request) {
     const [cRes] = await conn.execute<ResultSetHeader>(
       `INSERT INTO clientes (
         usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
-        email, telefone, celular, endereco, cidade, estado, cep, porte, ramo_atividade,
+        email, telefone, celular, endereco, numero, complemento, bairro, cidade, estado, cep,
+        porte, ramo_atividade,
         responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
-        status, observacoes, ProtocoloCadbrasil
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        status, observacoes, protocolo_cadbrasil
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         idUsuario,
         tipoDoc,
@@ -242,7 +240,10 @@ export async function POST(req: Request) {
         emailResponsavel,
         telefoneSql,
         telefoneSql,
-        endereco,
+        enderecoRua,
+        enderecoNumero,
+        enderecoComplemento,
+        enderecoBairro,
         data.cidade.trim(),
         data.estado.toUpperCase(),
         data.cep.replace(/\D/g, ""),

@@ -10,7 +10,10 @@ interface ClienteRow extends RowDataPacket {
   nome_fantasia: string | null;
   email: string;
   telefone: string;
-  endereco: string;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
   cidade: string;
   estado: string;
   cep: string;
@@ -18,10 +21,15 @@ interface ClienteRow extends RowDataPacket {
   responsavel_cpf: string | null;
   responsavel_email: string;
   responsavel_telefone: string;
-  ProtocoloCadbrasil: string;
+  protocolo_cadbrasil: string;
 }
 
-function parseEndereco(raw: string | null): { rua: string; numero: string; complemento: string; bairro: string } {
+function parseEnderecoLegado(raw: string | null): {
+  rua: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+} {
   if (!raw) return { rua: "", numero: "S/N", complemento: "", bairro: "" };
   const parts = raw.split(",").map((p) => p.trim());
   if (parts.length >= 4) {
@@ -46,6 +54,18 @@ function parseEndereco(raw: string | null): { rua: string; numero: string; compl
     complemento: "",
     bairro: "",
   };
+}
+
+function resolverEndereco(cliente: ClienteRow) {
+  if (cliente.numero || cliente.bairro || cliente.complemento) {
+    return {
+      rua: cliente.endereco || "",
+      numero: cliente.numero || "S/N",
+      complemento: cliente.complemento || "",
+      bairro: cliente.bairro || "",
+    };
+  }
+  return parseEnderecoLegado(cliente.endereco);
 }
 
 interface UsuarioRow extends RowDataPacket {
@@ -74,11 +94,12 @@ export async function GET(
 
     const [clientes] = await pool.query<ClienteRow[]>(
       `SELECT c.id, c.tipo_documento, c.documento, c.razao_social, c.nome_fantasia,
-              c.email, c.telefone, c.endereco, c.cidade, c.estado, c.cep,
+              c.email, c.telefone, c.endereco, c.numero, c.complemento, c.bairro,
+              c.cidade, c.estado, c.cep,
               c.responsavel_nome, c.responsavel_cpf, c.responsavel_email, c.responsavel_telefone,
-              c.ProtocoloCadbrasil
+              c.protocolo_cadbrasil
        FROM clientes c
-       WHERE c.ProtocoloCadbrasil = ?
+       WHERE c.protocolo_cadbrasil = ?
        LIMIT 1`,
       [protocolo]
     );
@@ -107,10 +128,10 @@ export async function GET(
     const emailAcesso = usuarios[0]?.email || cliente.email;
     const contrato = contratos[0] || null;
     const tipoPessoa = cliente.tipo_documento === "CNPJ" ? "PJ" : "PF";
-    const addr = parseEndereco(cliente.endereco);
+    const addr = resolverEndereco(cliente);
 
     return NextResponse.json({
-      protocolo: cliente.ProtocoloCadbrasil,
+      protocolo: cliente.protocolo_cadbrasil,
       nome: cliente.responsavel_nome,
       email: cliente.email,
       emailAcesso,

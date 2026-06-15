@@ -65,7 +65,7 @@ export async function resolveClienteSicafPorProtocolo(protocolo: string): Promis
     `SELECT c.id AS cliente_id, c.razao_social, c.documento, c.email, s.id AS sicaf_id
      FROM clientes c
      INNER JOIN sicaf_cadastros s ON s.cliente_id = c.id
-     WHERE c.ProtocoloCadbrasil = ?
+     WHERE c.protocolo_cadbrasil = ?
      LIMIT 1`,
     [protocolo]
   );
@@ -81,7 +81,7 @@ export async function resolveClienteSicafPorProtocolo(protocolo: string): Promis
   }
 
   const [clientes] = await pool.query<RowDataPacket[]>(
-    "SELECT id, razao_social, documento, email FROM clientes WHERE ProtocoloCadbrasil = ? LIMIT 1",
+    "SELECT id, razao_social, documento, email FROM clientes WHERE protocolo_cadbrasil = ? LIMIT 1",
     [protocolo]
   );
   if (clientes.length === 0) return null;
