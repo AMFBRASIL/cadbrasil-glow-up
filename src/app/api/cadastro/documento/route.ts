@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { RowDataPacket } from "mysql2";
-import { getPool } from "@/lib/db";
+import { getPool, isDbConfigured } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Documento inválido" }, { status: 400 });
   }
 
+  if (!isDbConfigured()) {
+    return NextResponse.json(
+      { error: "Banco de dados não configurado no servidor." },
+      { status: 503 }
+    );
+  }
+
   try {
     const pool = getPool();
     const [rows] = await pool.query<RowDataPacket[]>(
@@ -28,7 +35,8 @@ export async function GET(request: Request) {
     );
 
     return NextResponse.json({ exists: rows.length > 0 });
-  } catch {
-    return NextResponse.json({ error: "Não foi possível verificar o documento" }, { status: 500 });
+  } catch (e) {
+    console.error("[cadastro/documento]", e);
+    return NextResponse.json({ error: "Não foi possível verificar o documento" }, { status: 503 });
   }
 }

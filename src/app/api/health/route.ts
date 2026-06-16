@@ -11,7 +11,14 @@ export async function GET() {
     return NextResponse.json({ ok: true, db: Array.isArray(rows) && rows.length > 0 });
   } catch (e) {
     console.error("[health]", e);
-    return NextResponse.json({ ok: false, db: false }, { status: 503 });
+    const hint =
+      e && typeof e === "object" && "code" in e
+        ? String((e as { code: string }).code)
+        : "connection_failed";
+    return NextResponse.json(
+      { ok: false, db: false, configured: true, hint },
+      { status: 503 }
+    );
   }
 }
 
