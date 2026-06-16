@@ -790,10 +790,22 @@ export function CadastroForm() {
       toast.error("Selecione CPF ou CNPJ para continuar");
       return;
     }
-    if (step === 1 && existingSupplier) {
+    if (existingSupplier) {
       setExistingSupplierModalOpen(true);
       toast.info("Fornecedor já cadastrado. Acesse a plataforma para continuar.");
       return;
+    }
+    if (step === 1 && tipoPessoa === "PF") {
+      const cpfDigits = values.cpf?.replace(/\D/g, "") || "";
+      if (cpfDigits.length !== 11 || !isValidCPF(values.cpf || "")) {
+        await trigger("cpf");
+        toast.error("Informe um CPF válido para continuar.");
+        return;
+      }
+      if (documentCheckLoading) {
+        toast.info("Aguarde a verificação do CPF.");
+        return;
+      }
     }
     if (step === 1 && tipoPessoa === "PJ") {
       const cnpjDigits = values.cnpj?.replace(/\D/g, "") || "";
@@ -821,14 +833,31 @@ export function CadastroForm() {
   };
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
+  const onInvalidSubmit = (fieldErrors: typeof errors) => {
+    const first = Object.values(fieldErrors)
+      .map((err) => err?.message)
+      .find(Boolean);
+    toast.error(first || "Verifique os campos obrigatórios antes de enviar.");
+  };
+
   const onSubmit = async (data: CadastroData) => {
+    if (existingSupplier) {
+      setExistingSupplierModalOpen(true);
+      toast.info("Fornecedor já cadastrado. Acesse a plataforma para continuar.");
+      return;
+    }
     setSubmitting(true);
     try {
       const trackingParams = getTrackingParamsForPayload();
+      const payload: CadastroData = {
+        ...data,
+        possuiSicaf: data.possuiSicaf || "nao",
+        prioritario: data.prioritario || "nao",
+      };
       const res = await fetch("/api/cadastro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, ...trackingParams }),
+        body: JSON.stringify({ ...payload, ...trackingParams }),
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
@@ -1010,9 +1039,11 @@ export function CadastroForm() {
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}
       className="bg-card rounded-3xl shadow-elevated overflow-hidden border border-border/60"
     >
+      <input type="hidden" {...register("possuiSicaf")} />
+      <input type="hidden" {...register("prioritario")} />
       <ExistingSupplierModal
         open={existingSupplierModalOpen}
         onOpenChange={setExistingSupplierModalOpen}
@@ -1086,6 +1117,15 @@ export function CadastroForm() {
                       setExistingSupplier(null);
                       setExistingSupplierModalOpen(false);
                       setLastCheckedDocument("");
+                      if (opt.id === "PF") {
+                        resetCnpjCompanyState();
+                        setValue("cnpj", "", { shouldValidate: false });
+                        setValue("razaoSocial", "", { shouldValidate: false });
+                        setValue("nomeFantasia", "", { shouldValidate: false });
+                        setValue("inscricaoEstadual", "", { shouldValidate: false });
+                        setValue("porte", "", { shouldValidate: false });
+                        setValue("segmento", "", { shouldValidate: false });
+                      }
                     }}
                     className={cn(
                       "relative text-left p-5 rounded-2xl border-2 transition-smooth group",
@@ -1154,11 +1194,11 @@ export function CadastroForm() {
                     placeholder="00.000.000/0000-00"
                     inputMode="numeric"
                     autoFocus
-                    value={values.cnpj}
+                    {...register("cnpj")}
                     onChange={(e) => {
                       const v = maskCNPJ(e.target.value);
                       const digits = v.replace(/\D/g, "");
-                      setValue("cnpj", v, { shouldValidate: true });
+                      setValue("cnpj", v, { shouldValidate: true, shouldDirty: true });
                       if (digits.length < 14) {
                         resetExistingSupplierIfDocumentChanged(digits);
                         resetCnpjCompanyState();
@@ -1238,13 +1278,14 @@ export function CadastroForm() {
         {step === 1 && tipoPessoa === "PF" && (
           <div key="s1pf" className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-slide-in">
             <Field
-              label="CPF do responsável"
+              label="CPF"
               required
+              error={errors.cpf?.message}
               hint={
                 documentCheckLoading
-                  ? "Verificando se este fornecedor já existe..."
+                  ? "Verificando se este CPF já está cadastrado..."
                   : existingSupplier?.tipo === "CPF"
-                  ? "Fornecedor já cadastrado. Acesse a plataforma para continuar."
+                  ? "CPF já cadastrado. Acesse a plataforma para continuar."
                   : undefined
               }
             >
@@ -1254,11 +1295,11 @@ export function CadastroForm() {
                   placeholder="000.000.000-00"
                   inputMode="numeric"
                   autoFocus
-                  value={values.cpf}
+                  {...register("cpf")}
                   onChange={(e) => {
                     const masked = maskCPF(e.target.value);
                     const digits = masked.replace(/\D/g, "");
-                    setValue("cpf", masked, { shouldValidate: true });
+                    setValue("cpf", masked, { shouldValidate: true, shouldDirty: true });
                     if (digits.length < 11) resetExistingSupplierIfDocumentChanged(digits);
                     if (digits.length === 11) {
                       void form.trigger("cpf");
@@ -1290,16 +1331,16 @@ export function CadastroForm() {
                     <input className={inputClass} placeholder="Nome do responsável" {...register("nomeResponsavel")} />
                   </Field>
                 </div>
-                <Field label="CPF do responsável" required>
+                <Field label="CPF do responsável" required error={errors.cpf?.message}>
                   <div className="relative">
                     <input
                       className={cn(inputClass, "pr-11")}
                       placeholder="000.000.000-00"
                       inputMode="numeric"
-                      value={values.cpf}
+                      {...register("cpf")}
                       onChange={(e) => {
                         const masked = maskCPF(e.target.value);
-                        setValue("cpf", masked, { shouldValidate: true });
+                        setValue("cpf", masked, { shouldValidate: true, shouldDirty: true });
                         if (masked.replace(/\D/g, "").length === 11) form.trigger("cpf");
                       }}
                     />

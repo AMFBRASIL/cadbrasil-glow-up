@@ -218,7 +218,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Corpo inválido", success: false }, { status: 400 });
   }
 
-  const parsed = cadastroBodySchema.safeParse(body);
+  const bodyRecord = body as Record<string, unknown>;
+  const normalizedBody = {
+    ...bodyRecord,
+    possuiSicaf: typeof bodyRecord.possuiSicaf === "string" ? bodyRecord.possuiSicaf : "nao",
+    prioritario: typeof bodyRecord.prioritario === "string" ? bodyRecord.prioritario : "nao",
+  };
+
+  const parsed = cadastroBodySchema.safeParse(normalizedBody);
   if (!parsed.success) {
     const first = parsed.error.flatten().fieldErrors;
     const msg =

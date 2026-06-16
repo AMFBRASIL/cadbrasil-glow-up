@@ -266,7 +266,9 @@ function SuccessView({ data }: { data: CadastroData }) {
               🎉 Sua conta foi criada com sucesso!
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground max-w-xl mx-auto leading-relaxed text-balance" data-seo-speakable="intro">
-              Sua empresa já possui acesso à plataforma CADBRASIL.
+              {data.tipoPessoa === "PJ"
+                ? "Sua empresa já possui acesso à plataforma CADBRASIL."
+                : "Sua conta já possui acesso à plataforma CADBRASIL."}
               <span className="block mt-1">
                 Agora faltam apenas alguns minutos para iniciarmos sua análise documental.
               </span>
