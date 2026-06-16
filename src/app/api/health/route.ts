@@ -1,17 +1,8 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
-
-function dbEnvOk(): boolean {
-  return Boolean(
-    process.env.DB_HOST &&
-      process.env.DB_USER &&
-      process.env.DB_PASSWORD !== undefined &&
-      process.env.DB_NAME
-  );
-}
+import { getPool, isDbConfigured } from "@/lib/db";
 
 export async function GET() {
-  if (!dbEnvOk()) {
+  if (!isDbConfigured()) {
     return NextResponse.json({ ok: false, db: false, configured: false }, { status: 503 });
   }
   try {

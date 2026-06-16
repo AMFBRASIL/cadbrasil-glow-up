@@ -58,6 +58,112 @@ async function insertClienteContato(
   }
 }
 
+type InsertClienteParams = {
+  idUsuario: number;
+  tipoDoc: "CPF" | "CNPJ";
+  docMasked: string;
+  razao: string;
+  nomeFantasia: string | null;
+  ie: string | null;
+  emailResponsavel: string;
+  telefoneSql: string | null;
+  enderecoRua: string | null;
+  enderecoNumero: string | null;
+  enderecoComplemento: string | null;
+  enderecoBairro: string | null;
+  cidade: string;
+  estado: string;
+  cepDigits: string;
+  porteSql: string;
+  ramo: string | null;
+  nomeResponsavel: string;
+  cpfRespDigits: string | null;
+  observacoesCliente: string;
+  protocolo: string;
+};
+
+async function insertCliente(conn: PoolConnection, p: InsertClienteParams): Promise<number> {
+  const sqlNovaBase = `INSERT INTO clientes (
+    usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
+    email, telefone, celular, endereco, numero, complemento, bairro, cidade, estado, cep,
+    porte, ramo_atividade,
+    responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
+    status, observacoes, protocolo_cadbrasil
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+  const valsNovaBase = [
+    p.idUsuario,
+    p.tipoDoc,
+    p.docMasked,
+    p.razao,
+    p.nomeFantasia,
+    p.ie,
+    p.emailResponsavel,
+    p.telefoneSql,
+    p.telefoneSql,
+    p.enderecoRua,
+    p.enderecoNumero,
+    p.enderecoComplemento,
+    p.enderecoBairro,
+    p.cidade,
+    p.estado,
+    p.cepDigits,
+    p.porteSql,
+    p.ramo,
+    p.nomeResponsavel,
+    p.cpfRespDigits,
+    p.emailResponsavel,
+    p.telefoneSql,
+    "Ativo",
+    p.observacoesCliente,
+    p.protocolo,
+  ];
+
+  try {
+    const [cRes] = await conn.execute<ResultSetHeader>(sqlNovaBase, valsNovaBase);
+    return cRes.insertId;
+  } catch (e) {
+    if (!isMysqlBadField(e)) throw e;
+    const enderecoLegado =
+      [p.enderecoRua, p.enderecoNumero, p.enderecoComplemento, p.enderecoBairro]
+        .filter(Boolean)
+        .join(", ") || null;
+    const [cRes] = await conn.execute<ResultSetHeader>(
+      `INSERT INTO clientes (
+        usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
+        email, telefone, celular, endereco, cidade, estado, cep,
+        porte, ramo_atividade,
+        responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
+        status, observacoes, protocoloCadbrasil
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        p.idUsuario,
+        p.tipoDoc,
+        p.docMasked,
+        p.razao,
+        p.nomeFantasia,
+        p.ie,
+        p.emailResponsavel,
+        p.telefoneSql,
+        p.telefoneSql,
+        enderecoLegado,
+        p.cidade,
+        p.estado,
+        p.cepDigits,
+        p.porteSql,
+        p.ramo,
+        p.nomeResponsavel,
+        p.cpfRespDigits,
+        p.emailResponsavel,
+        p.telefoneSql,
+        "Ativo",
+        p.observacoesCliente,
+        p.protocolo,
+      ]
+    );
+    return cRes.insertId;
+  }
+}
+
 async function insertTrackingPosCommit(
   pool: ReturnType<typeof getPool>,
   clienteId: number,
@@ -222,43 +328,29 @@ export async function POST(req: Request) {
     const ie = data.tipoPessoa === "PJ" ? data.inscricaoEstadual?.trim() || null : null;
     const ramo = data.segmento?.trim() || null;
 
-    const [cRes] = await conn.execute<ResultSetHeader>(
-      `INSERT INTO clientes (
-        usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
-        email, telefone, celular, endereco, numero, complemento, bairro, cidade, estado, cep,
-        porte, ramo_atividade,
-        responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
-        status, observacoes, protocolo_cadbrasil
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        idUsuario,
-        tipoDoc,
-        docMasked,
-        razao,
-        data.nomeFantasia?.trim() || null,
-        ie,
-        emailResponsavel,
-        telefoneSql,
-        telefoneSql,
-        enderecoRua,
-        enderecoNumero,
-        enderecoComplemento,
-        enderecoBairro,
-        data.cidade.trim(),
-        data.estado.toUpperCase(),
-        data.cep.replace(/\D/g, ""),
-        porteSql,
-        ramo,
-        data.nomeResponsavel.trim(),
-        cpfRespDigits,
-        emailResponsavel,
-        telefoneSql,
-        "Ativo",
-        observacoesCliente,
-        protocolo,
-      ]
-    );
-    const idCliente = cRes.insertId;
+    const idCliente = await insertCliente(conn, {
+      idUsuario,
+      tipoDoc,
+      docMasked,
+      razao,
+      nomeFantasia: data.nomeFantasia?.trim() || null,
+      ie,
+      emailResponsavel,
+      telefoneSql,
+      enderecoRua,
+      enderecoNumero,
+      enderecoComplemento,
+      enderecoBairro,
+      cidade: data.cidade.trim(),
+      estado: data.estado.toUpperCase(),
+      cepDigits: data.cep.replace(/\D/g, ""),
+      porteSql,
+      ramo,
+      nomeResponsavel: data.nomeResponsavel.trim(),
+      cpfRespDigits,
+      observacoesCliente,
+      protocolo,
+    });
 
     const [sRes] = await conn.execute<ResultSetHeader>(
       `INSERT INTO sicaf_cadastros (cliente_id, status, completude, credenciamento_anual, manutencao_ativa, dias_validade, observacoes)
