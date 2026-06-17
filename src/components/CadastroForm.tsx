@@ -528,6 +528,7 @@ export function CadastroForm() {
       tipoPessoa: undefined as unknown as "PJ",
       razaoSocial: "", nomeFantasia: "", cnpj: "", inscricaoEstadual: "",
       porte: "", segmento: "",
+      cnaes: [] as CadastroData["cnaes"],
       nomeResponsavel: "", cpf: "", cargo: "", telefone: "", email: "",
       cep: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "",
       servico: "Novo Cadastro SICAF", possuiSicaf: "nao", prioritario: "nao", observacoes: "",
@@ -620,6 +621,7 @@ export function CadastroForm() {
       "inscricaoEstadual",
       "porte",
       "segmento",
+      "cnaes",
       "cep",
       "rua",
       "numero",
@@ -630,7 +632,13 @@ export function CadastroForm() {
       "telefone",
       "email",
     ];
-    fields.forEach((f) => setValue(f, "" as never, { shouldValidate: false }));
+    fields.forEach((f) => {
+      if (f === "cnaes") {
+        setValue("cnaes", [], { shouldValidate: false });
+        return;
+      }
+      setValue(f, "" as never, { shouldValidate: false });
+    });
   };
 
   const resetCnpjCompanyState = () => {
@@ -652,6 +660,7 @@ export function CadastroForm() {
         clearCompanyFields();
         setValue("porte", "MEDIA", { shouldValidate: true });
         setValue("segmento", "Atividade empresarial", { shouldValidate: true });
+        setValue("cnaes", [], { shouldValidate: false });
         setCnpjFetched(false);
         setCnpjManualFill(true);
         if (result.error === "Serviço de consulta indisponível") {
@@ -672,6 +681,7 @@ export function CadastroForm() {
       setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
       setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
       setValue("segmento", d.cnae_fiscal_descricao?.trim() || "Atividade empresarial", { shouldValidate: true });
+      setValue("cnaes", d.cnaes ?? [], { shouldValidate: false });
       // endereço
       if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
       setValue("rua", d.logradouro || "", { shouldValidate: true });
@@ -853,6 +863,7 @@ export function CadastroForm() {
         ...data,
         possuiSicaf: data.possuiSicaf || "nao",
         prioritario: data.prioritario || "nao",
+        cnaes: data.tipoPessoa === "PJ" ? data.cnaes ?? getValues("cnaes") ?? [] : [],
       };
       const res = await fetch("/api/cadastro", {
         method: "POST",
@@ -1125,6 +1136,7 @@ export function CadastroForm() {
                         setValue("inscricaoEstadual", "", { shouldValidate: false });
                         setValue("porte", "", { shouldValidate: false });
                         setValue("segmento", "", { shouldValidate: false });
+                        setValue("cnaes", [], { shouldValidate: false });
                       }
                     }}
                     className={cn(

@@ -19,6 +19,8 @@ import {
   tipoDocumentoSql,
 } from "@/lib/cadastro-portal";
 import { dispararEmailsPosCadastro } from "@/lib/email-api";
+import { insertClientesCnaes } from "@/lib/clientes-cnaes";
+import { principalCnaeCodigo, type CnaeItem } from "@/lib/cnae";
 
 export const dynamic = "force-dynamic";
 /** Permite concluir envio de e-mails após a resposta HTTP (Vercel + waitUntil). */
@@ -76,6 +78,7 @@ type InsertClienteParams = {
   cepDigits: string;
   porteSql: string;
   ramo: string | null;
+  cnaePrincipal: string | null;
   nomeResponsavel: string;
   cpfRespDigits: string | null;
   observacoesCliente: string;
@@ -86,10 +89,10 @@ async function insertCliente(conn: PoolConnection, p: InsertClienteParams): Prom
   const sqlNovaBase = `INSERT INTO clientes (
     usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
     email, telefone, celular, endereco, numero, complemento, bairro, cidade, estado, cep,
-    porte, ramo_atividade,
+    porte, ramo_atividade, cnae_principal,
     responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
     status, observacoes, protocolo_cadbrasil
-  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
   const valsNovaBase = [
     p.idUsuario,
     p.tipoDoc,
@@ -109,6 +112,7 @@ async function insertCliente(conn: PoolConnection, p: InsertClienteParams): Prom
     p.cepDigits,
     p.porteSql,
     p.ramo,
+    p.cnaePrincipal,
     p.nomeResponsavel,
     p.cpfRespDigits,
     p.emailResponsavel,
@@ -123,6 +127,46 @@ async function insertCliente(conn: PoolConnection, p: InsertClienteParams): Prom
     return cRes.insertId;
   } catch (e) {
     if (!isMysqlBadField(e)) throw e;
+    const sqlSemCnaePrincipal = `INSERT INTO clientes (
+      usuario_id, tipo_documento, documento, razao_social, nome_fantasia, inscricao_estadual,
+      email, telefone, celular, endereco, numero, complemento, bairro, cidade, estado, cep,
+      porte, ramo_atividade,
+      responsavel_nome, responsavel_cpf, responsavel_email, responsavel_telefone,
+      status, observacoes, protocolo_cadbrasil
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+    const valsSemCnaePrincipal = [
+      p.idUsuario,
+      p.tipoDoc,
+      p.docMasked,
+      p.razao,
+      p.nomeFantasia,
+      p.ie,
+      p.emailResponsavel,
+      p.telefoneSql,
+      p.telefoneSql,
+      p.enderecoRua,
+      p.enderecoNumero,
+      p.enderecoComplemento,
+      p.enderecoBairro,
+      p.cidade,
+      p.estado,
+      p.cepDigits,
+      p.porteSql,
+      p.ramo,
+      p.nomeResponsavel,
+      p.cpfRespDigits,
+      p.emailResponsavel,
+      p.telefoneSql,
+      "Ativo",
+      p.observacoesCliente,
+      p.protocolo,
+    ];
+    try {
+      const [cRes] = await conn.execute<ResultSetHeader>(sqlSemCnaePrincipal, valsSemCnaePrincipal);
+      return cRes.insertId;
+    } catch (e2) {
+      if (!isMysqlBadField(e2)) throw e2;
+    }
     const enderecoLegado =
       [p.enderecoRua, p.enderecoNumero, p.enderecoComplemento, p.enderecoBairro]
         .filter(Boolean)
@@ -334,6 +378,9 @@ export async function POST(req: Request) {
     const porteSql = data.tipoPessoa === "PJ" ? mapPorteSql(data.porte) : "ME";
     const ie = data.tipoPessoa === "PJ" ? data.inscricaoEstadual?.trim() || null : null;
     const ramo = data.segmento?.trim() || null;
+    const cnaesPayload = Array.isArray(data.cnaes) ? (data.cnaes as CnaeItem[]) : [];
+    const cnaePrincipal =
+      data.tipoPessoa === "PJ" ? principalCnaeCodigo(cnaesPayload) : null;
 
     const idCliente = await insertCliente(conn, {
       idUsuario,
@@ -353,11 +400,16 @@ export async function POST(req: Request) {
       cepDigits: data.cep.replace(/\D/g, ""),
       porteSql,
       ramo,
+      cnaePrincipal,
       nomeResponsavel: data.nomeResponsavel.trim(),
       cpfRespDigits,
       observacoesCliente,
       protocolo,
     });
+
+    if (data.tipoPessoa === "PJ" && cnaesPayload.length > 0) {
+      await insertClientesCnaes(conn, idCliente, cnaesPayload);
+    }
 
     const [sRes] = await conn.execute<ResultSetHeader>(
       `INSERT INTO sicaf_cadastros (cliente_id, status, completude, credenciamento_anual, manutencao_ativa, dias_validade, observacoes)

@@ -1,9 +1,13 @@
+import { dedupeCnaes, pickCnaeCodigo, principalCnaeCodigo, type CnaeItem } from "@/lib/cnae";
+
 export type CnpjLookupResult = {
   razao_social: string;
   nome_fantasia: string;
   inscricao_estadual: string;
   porte: string;
+  cnae_principal_codigo: string;
   cnae_fiscal_descricao: string;
+  cnaes: CnaeItem[];
   cep: string;
   logradouro: string;
   numero: string;
@@ -13,6 +17,12 @@ export type CnpjLookupResult = {
   uf: string;
   ddd_telefone_1: string;
   email: string;
+};
+
+type CnpjWsAtividade = {
+  id?: string | number | null;
+  subclasse?: string | null;
+  descricao?: string | null;
 };
 
 type CnpjWsResponse = {
@@ -31,9 +41,8 @@ type CnpjWsResponse = {
     ddd1?: string | null;
     telefone1?: string | null;
     email?: string | null;
-    atividade_principal?: {
-      descricao?: string | null;
-    } | null;
+    atividade_principal?: CnpjWsAtividade | null;
+    atividades_secundarias?: CnpjWsAtividade[] | null;
     cidade?: {
       nome?: string | null;
     } | null;
@@ -82,6 +91,34 @@ function pickInscricaoEstadual(data: CnpjWsResponse): string {
   return inscricao?.inscricao_estadual || "";
 }
 
+function mapAtividade(atividade: CnpjWsAtividade, tipo: CnaeItem["tipo"]): CnaeItem | null {
+  const descricao = atividade.descricao?.trim();
+  if (!descricao) return null;
+  const codigo = pickCnaeCodigo(atividade);
+  if (!codigo) return null;
+  return { codigo, descricao, tipo };
+}
+
+export function extractCnaesFromEstabelecimento(
+  estabelecimento: CnpjWsResponse["estabelecimento"]
+): CnaeItem[] {
+  if (!estabelecimento) return [];
+
+  const items: CnaeItem[] = [];
+  const principal = estabelecimento.atividade_principal;
+  if (principal) {
+    const mapped = mapAtividade(principal, "principal");
+    if (mapped) items.push(mapped);
+  }
+
+  for (const secundaria of estabelecimento.atividades_secundarias ?? []) {
+    const mapped = mapAtividade(secundaria, "secundario");
+    if (mapped) items.push(mapped);
+  }
+
+  return dedupeCnaes(items);
+}
+
 export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
   const digits = onlyDigitsCnpj(cnpj);
   if (digits.length !== 14) return null;
@@ -104,13 +141,21 @@ export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupRes
   const data = (await response.json()) as CnpjWsResponse;
   const estabelecimento = data.estabelecimento;
   const dddTelefone = [estabelecimento?.ddd1, estabelecimento?.telefone1].filter(Boolean).join("");
+  const cnaes = extractCnaesFromEstabelecimento(estabelecimento);
+  const principalCodigo = principalCnaeCodigo(cnaes) || "";
+  const principalDescricao =
+    cnaes.find((c) => c.tipo === "principal")?.descricao ||
+    estabelecimento?.atividade_principal?.descricao?.trim() ||
+    "";
 
   return {
     razao_social: data.razao_social || "",
     nome_fantasia: estabelecimento?.nome_fantasia || "",
     inscricao_estadual: pickInscricaoEstadual(data),
     porte: normalizePorte(data.porte?.descricao),
-    cnae_fiscal_descricao: estabelecimento?.atividade_principal?.descricao || "",
+    cnae_principal_codigo: principalCodigo,
+    cnae_fiscal_descricao: principalDescricao,
+    cnaes,
     cep: estabelecimento?.cep || "",
     logradouro: buildLogradouro(estabelecimento?.tipo_logradouro, estabelecimento?.logradouro),
     numero: estabelecimento?.numero || "",
@@ -122,4 +167,3 @@ export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupRes
     email: estabelecimento?.email || "",
   };
 }
-

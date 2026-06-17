@@ -371,6 +371,23 @@ CREATE TABLE `clientes` (
   CONSTRAINT `fk_clientes_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=191744 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+/*Table structure for table `clientes_cnaes` */
+
+DROP TABLE IF EXISTS `clientes_cnaes`;
+
+CREATE TABLE `clientes_cnaes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `cliente_id` bigint(20) unsigned NOT NULL,
+  `cnae_codigo` varchar(10) NOT NULL,
+  `descricao` varchar(255) NOT NULL,
+  `tipo` enum('principal','secundario') NOT NULL DEFAULT 'secundario',
+  `ordem` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_clientes_cnaes_cliente` (`cliente_id`),
+  CONSTRAINT `fk_clientes_cnaes_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `clientes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 /*Table structure for table `clientes_certificado_digital` */
 
 DROP TABLE IF EXISTS `clientes_certificado_digital`;

@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+const cnaeItemSchema = z.object({
+  codigo: z.string().trim().min(1).max(10),
+  descricao: z.string().trim().min(1).max(255),
+  tipo: z.enum(["principal", "secundario"]),
+});
+
 const baseSchema = {
   tipoPessoa: z.enum(["PJ", "PF"], { message: "Selecione CPF ou CNPJ" }),
   razaoSocial: z.string().trim().max(160).optional().or(z.literal("")),
@@ -8,6 +14,7 @@ const baseSchema = {
   inscricaoEstadual: z.string().trim().max(30).optional().or(z.literal("")),
   porte: z.string().optional().or(z.literal("")),
   segmento: z.string().trim().max(120).optional().or(z.literal("")),
+  cnaes: z.array(cnaeItemSchema).optional(),
   nomeResponsavel: z.string().trim().min(2, "Informe o nome").max(120),
   cpf: z.string().optional().or(z.literal("")),
   cargo: z.string().trim().max(60).optional().or(z.literal("")),
