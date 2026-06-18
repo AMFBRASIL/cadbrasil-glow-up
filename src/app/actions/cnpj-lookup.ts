@@ -12,17 +12,9 @@ export async function lookupCnpjAction(cnpj: string): Promise<CnpjLookupActionRe
     return { ok: false, error: "CNPJ inválido" };
   }
 
-  try {
-    const data = await fetchCnpjFromProvider(digits);
-    if (!data) {
-      return { ok: false, error: "CNPJ não localizado" };
-    }
-    return { ok: true, data };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("CNPJ_WS_API_TOKEN")) {
-      return { ok: false, error: "Serviço de consulta indisponível" };
-    }
-    return { ok: false, error: "Erro ao consultar CNPJ" };
+  const result = await fetchCnpjFromProvider(digits);
+  if (result.ok === false) {
+    return { ok: false, error: result.message };
   }
+  return { ok: true, data: result.data };
 }

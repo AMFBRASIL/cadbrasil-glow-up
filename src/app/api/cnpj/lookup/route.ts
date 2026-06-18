@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { fetchCnpjFromProvider, onlyDigitsCnpj } from "@/lib/cnpj-lookup";
 
 export const dynamic = "force-dynamic";
+/** CNPJ.ws pode levar >10s; evita corte da função na Vercel (default 10s). */
+export const maxDuration = 30;
+
+const STATUS_BY_CODE = {
+  not_found: 404,
+  unauthorized: 503,
+  not_configured: 503,
+  rate_limit: 429,
+  timeout: 504,
+  provider_error: 502,
+} as const;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,21 +22,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "CNPJ inválido" }, { status: 400 });
   }
 
-  try {
-    const data = await fetchCnpjFromProvider(digits);
-    if (!data) {
-      return NextResponse.json({ ok: false, error: "CNPJ não localizado" }, { status: 404 });
-    }
-    return NextResponse.json({ ok: true, data });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "";
-    if (message.includes("CNPJ_WS_API_TOKEN")) {
-      return NextResponse.json({ ok: false, error: "Serviço de consulta indisponível" }, { status: 503 });
-    }
-    if (err instanceof Error && err.name === "TimeoutError") {
-      return NextResponse.json({ ok: false, error: "Consulta CNPJ expirou. Tente novamente." }, { status: 504 });
-    }
-    console.error("[cnpj/lookup]", err);
-    return NextResponse.json({ ok: false, error: "Erro ao consultar CNPJ" }, { status: 502 });
+  const result = await fetchCnpjFromProvider(digits);
+  if (result.ok === false) {
+    const status = STATUS_BY_CODE[result.code] ?? 502;
+    return NextResponse.json({ ok: false, error: result.message, code: result.code }, { status });
   }
+
+  return NextResponse.json({ ok: true, data: result.data });
 }

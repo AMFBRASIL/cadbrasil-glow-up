@@ -120,7 +120,25 @@ export function extractCnaesFromEstabelecimento(
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 12_000;
+/** CNPJ.ws costuma levar 12–20s; timeout curto abortava CNPJs válidos. */
+const FETCH_TIMEOUT_MS = 28_000;
+
+export type CnpjProviderErrorCode =
+  | "not_found"
+  | "unauthorized"
+  | "rate_limit"
+  | "timeout"
+  | "provider_error"
+  | "not_configured";
+
+export type CnpjProviderResult =
+  | { ok: true; data: CnpjLookupResult }
+  | { ok: false; code: CnpjProviderErrorCode; message: string };
+
+function isFetchTimeout(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.name === "TimeoutError" || err.name === "AbortError";
+}
 
 type CacheEntry = { expiresAt: number; data: CnpjLookupResult };
 
@@ -179,31 +197,81 @@ function mapCnpjWsResponse(data: CnpjWsResponse): CnpjLookupResult {
   };
 }
 
-export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
+export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjProviderResult> {
   const digits = onlyDigitsCnpj(cnpj);
-  if (digits.length !== 14) return null;
+  if (digits.length !== 14) {
+    return { ok: false, code: "not_found", message: "CNPJ inválido." };
+  }
 
   const cached = readCachedCnpj(digits);
-  if (cached) return cached;
+  if (cached) return { ok: true, data: cached };
 
   const token = process.env.CNPJ_WS_API_TOKEN;
   if (!token) {
-    throw new Error("CNPJ_WS_API_TOKEN não configurado");
+    return {
+      ok: false,
+      code: "not_configured",
+      message: "Serviço de consulta CNPJ não configurado no servidor.",
+    };
   }
 
-  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
-    headers: {
-      x_api_token: token,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
+  try {
+    const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
+      headers: {
+        x_api_token: token,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
 
-  if (!response.ok) return null;
+    if (response.status === 404) {
+      return {
+        ok: false,
+        code: "not_found",
+        message: "CNPJ não localizado na Receita Federal.",
+      };
+    }
+    if (response.status === 401 || response.status === 403) {
+      return {
+        ok: false,
+        code: "unauthorized",
+        message: "Consulta CNPJ indisponível (credencial inválida).",
+      };
+    }
+    if (response.status === 429) {
+      return {
+        ok: false,
+        code: "rate_limit",
+        message: "Limite de consultas CNPJ atingido. Aguarde e tente novamente.",
+      };
+    }
+    if (!response.ok) {
+      console.error("[cnpj-lookup] provider HTTP", response.status, digits);
+      return {
+        ok: false,
+        code: "provider_error",
+        message: "Consulta CNPJ indisponível no momento. Tente novamente.",
+      };
+    }
 
-  const data = (await response.json()) as CnpjWsResponse;
-  const mapped = mapCnpjWsResponse(data);
-  writeCachedCnpj(digits, mapped);
-  return mapped;
+    const data = (await response.json()) as CnpjWsResponse;
+    const mapped = mapCnpjWsResponse(data);
+    writeCachedCnpj(digits, mapped);
+    return { ok: true, data: mapped };
+  } catch (err) {
+    if (isFetchTimeout(err)) {
+      return {
+        ok: false,
+        code: "timeout",
+        message: "Consulta CNPJ demorou demais. Tente novamente.",
+      };
+    }
+    console.error("[cnpj-lookup] provider error", err);
+    return {
+      ok: false,
+      code: "provider_error",
+      message: "Erro ao consultar CNPJ. Tente novamente.",
+    };
+  }
 }

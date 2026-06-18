@@ -664,13 +664,20 @@ export function CadastroForm() {
       setValue("cnaes", [], { shouldValidate: false });
       setCnpjFetched(false);
       setCnpjManualFill(true);
-      if (result.error === "Serviço de consulta indisponível") {
+
+      const code = result.code || "";
+      if (code === "not_configured" || code === "unauthorized") {
         toast.error("Consulta CNPJ indisponível no momento. Preencha manualmente.");
-      } else if (result.error.includes("expirou")) {
-        toast.error("Consulta CNPJ demorou demais. Tente novamente ou preencha manualmente.");
+      } else if (code === "timeout" || code === "invalid_response" || code === "provider_error") {
+        toast.error(result.error || "Consulta CNPJ indisponível. Tente novamente ou preencha manualmente.");
+      } else if (code === "rate_limit") {
+        toast.error(result.error);
+      } else if (code === "not_found") {
+        toast.info("CNPJ não localizado na Receita Federal. Preencha os dados manualmente.");
       } else {
-        toast.info("CNPJ não localizado. Preencha os dados manualmente.");
+        toast.error(result.error || "Não foi possível consultar o CNPJ. Preencha manualmente.");
       }
+
       return {
         cnpj: raw,
         razaoSocial: "",
