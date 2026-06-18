@@ -19,6 +19,7 @@ out
 # Não versionar (pedido: não enviar ao GitHub)
 docs/
 scripts/
+database/
 
 # Editor directories and files
 .vscode/*
