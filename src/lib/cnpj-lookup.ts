@@ -119,26 +119,37 @@ export function extractCnaesFromEstabelecimento(
   return dedupeCnaes(items);
 }
 
-export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
-  const digits = onlyDigitsCnpj(cnpj);
-  if (digits.length !== 14) return null;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 12_000;
 
-  const token = process.env.CNPJ_WS_API_TOKEN;
-  if (!token) {
-    throw new Error("CNPJ_WS_API_TOKEN não configurado");
+type CacheEntry = { expiresAt: number; data: CnpjLookupResult };
+
+const globalCnpjCache = globalThis as unknown as {
+  cnpjLookupCache?: Map<string, CacheEntry>;
+};
+
+function getCnpjCache(): Map<string, CacheEntry> {
+  if (!globalCnpjCache.cnpjLookupCache) {
+    globalCnpjCache.cnpjLookupCache = new Map();
   }
+  return globalCnpjCache.cnpjLookupCache;
+}
 
-  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
-    headers: {
-      x_api_token: token,
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
+function readCachedCnpj(digits: string): CnpjLookupResult | null {
+  const entry = getCnpjCache().get(digits);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    getCnpjCache().delete(digits);
+    return null;
+  }
+  return entry.data;
+}
 
-  if (!response.ok) return null;
+function writeCachedCnpj(digits: string, data: CnpjLookupResult): void {
+  getCnpjCache().set(digits, { expiresAt: Date.now() + CACHE_TTL_MS, data });
+}
 
-  const data = (await response.json()) as CnpjWsResponse;
+function mapCnpjWsResponse(data: CnpjWsResponse): CnpjLookupResult {
   const estabelecimento = data.estabelecimento;
   const dddTelefone = [estabelecimento?.ddd1, estabelecimento?.telefone1].filter(Boolean).join("");
   const cnaes = extractCnaesFromEstabelecimento(estabelecimento);
@@ -166,4 +177,33 @@ export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupRes
     ddd_telefone_1: dddTelefone,
     email: estabelecimento?.email || "",
   };
+}
+
+export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
+  const digits = onlyDigitsCnpj(cnpj);
+  if (digits.length !== 14) return null;
+
+  const cached = readCachedCnpj(digits);
+  if (cached) return cached;
+
+  const token = process.env.CNPJ_WS_API_TOKEN;
+  if (!token) {
+    throw new Error("CNPJ_WS_API_TOKEN não configurado");
+  }
+
+  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
+    headers: {
+      x_api_token: token,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as CnpjWsResponse;
+  const mapped = mapCnpjWsResponse(data);
+  writeCachedCnpj(digits, mapped);
+  return mapped;
 }
