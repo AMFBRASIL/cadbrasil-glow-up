@@ -17,7 +17,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
-import { lookupCnpjClient } from "@/lib/cnpj-lookup-client";
+import { lookupCnpjAction } from "@/app/actions/cnpj-lookup";
 import { getUtmForPayload, trackConversion } from "@/lib/utm";
 import { cn } from "@/lib/utils";
 
@@ -192,7 +192,7 @@ export default function DiagnosticoSicafContent() {
       }
       setFoundInBase(existsInBase);
 
-      const result = await lookupCnpjClient(digits);
+      const result = await lookupCnpjAction(digits);
       if (result.ok) {
         setCompany({
           razaoSocial: result.data.razao_social || "",

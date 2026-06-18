@@ -3,7 +3,7 @@
 import { type ReactNode, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { lookupCnpjClient, type CnpjLookupClientResult } from "@/lib/cnpj-lookup-client";
+import { lookupCnpjAction } from "@/app/actions/cnpj-lookup";
 import { cadastroSchema, type CadastroData, isValidCPF } from "@/lib/validations/cadastro";
 import {
   ArrowRight,
@@ -564,12 +564,7 @@ export function CadastroForm() {
     }
   };
 
-  const checkExistingSupplier = async (
-    raw: string,
-    tipo: ExistingSupplier["tipo"],
-    options?: { manageLoading?: boolean }
-  ) => {
-    const manageLoading = options?.manageLoading !== false;
+  const checkExistingSupplier = async (raw: string, tipo: ExistingSupplier["tipo"]) => {
     const documento = raw.replace(/\D/g, "");
     const expectedLength = tipo === "CNPJ" ? 14 : 11;
 
@@ -589,7 +584,7 @@ export function CadastroForm() {
       setExistingSupplierModalOpen(false);
     }
 
-    if (manageLoading) setDocumentCheckLoading(true);
+    setDocumentCheckLoading(true);
     try {
       const res = await fetch(`/api/cadastro/documento?documento=${documento}`, { cache: "no-store" });
       const json = (await res.json().catch(() => ({}))) as { exists?: boolean };
@@ -614,7 +609,7 @@ export function CadastroForm() {
       toast.error("Não foi possível verificar se o fornecedor já existe.");
       return false;
     } finally {
-      if (manageLoading) setDocumentCheckLoading(false);
+      setDocumentCheckLoading(false);
     }
   };
 
@@ -653,68 +648,6 @@ export function CadastroForm() {
     clearCompanyFields();
   };
 
-  const applyCnpjLookupResult = (
-    raw: string,
-    result: CnpjLookupClientResult
-  ): SicafAnalysisCompany | null => {
-    if (result.ok === false) {
-      clearCompanyFields();
-      setValue("porte", "MEDIA", { shouldValidate: true });
-      setValue("segmento", "Atividade empresarial", { shouldValidate: true });
-      setValue("cnaes", [], { shouldValidate: false });
-      setCnpjFetched(false);
-      setCnpjManualFill(true);
-
-      const code = result.code || "";
-      if (code === "not_configured" || code === "unauthorized") {
-        toast.error("Consulta CNPJ indisponível no momento. Preencha manualmente.");
-      } else if (code === "timeout" || code === "invalid_response" || code === "provider_error") {
-        toast.error(result.error || "Consulta CNPJ indisponível. Tente novamente ou preencha manualmente.");
-      } else if (code === "rate_limit") {
-        toast.error(result.error);
-      } else if (code === "not_found") {
-        toast.info("CNPJ não localizado na Receita Federal. Preencha os dados manualmente.");
-      } else {
-        toast.error(result.error || "Não foi possível consultar o CNPJ. Preencha manualmente.");
-      }
-
-      return {
-        cnpj: raw,
-        razaoSocial: "",
-        segmento: "",
-        cnpjFetched: false,
-      };
-    }
-
-    const d = result.data;
-    setValue("razaoSocial", d.razao_social || "", { shouldValidate: true });
-    setValue("nomeFantasia", d.nome_fantasia || "", { shouldValidate: true });
-    setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
-    setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
-    setValue("segmento", d.cnae_fiscal_descricao?.trim() || "Atividade empresarial", { shouldValidate: true });
-    setValue("cnaes", d.cnaes ?? [], { shouldValidate: false });
-    if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
-    setValue("rua", d.logradouro || "", { shouldValidate: true });
-    setValue("numero", d.numero || "", { shouldValidate: true });
-    setValue("complemento", sanitizeComplemento(d.complemento || ""), { shouldValidate: true });
-    setValue("bairro", d.bairro || "", { shouldValidate: true });
-    setValue("cidade", d.municipio || "", { shouldValidate: true });
-    setValue("estado", (d.uf || "").toUpperCase(), { shouldValidate: true });
-    if (d.ddd_telefone_1) {
-      setValue("telefone", maskPhone(String(d.ddd_telefone_1)), { shouldValidate: true });
-    }
-    if (d.email) setValue("email", String(d.email).toLowerCase(), { shouldValidate: true });
-    setCnpjManualFill(false);
-    setCnpjFetched(true);
-    toast.success("Dados preenchidos automaticamente pela Receita Federal");
-    return {
-      cnpj: raw,
-      razaoSocial: d.razao_social || "",
-      segmento: d.cnae_fiscal_descricao || "",
-      cnpjFetched: true,
-    };
-  };
-
   const lookupCNPJ = async (raw: string): Promise<SicafAnalysisCompany | null> => {
     const cnpj = raw.replace(/\D/g, "");
     if (cnpj.length !== 14) return null;
@@ -722,8 +655,55 @@ export function CadastroForm() {
     setCnpjFetched(false);
     setCnpjManualFill(false);
     try {
-      const result = await lookupCnpjClient(cnpj);
-      return applyCnpjLookupResult(raw, result);
+      const result = await lookupCnpjAction(cnpj);
+      if (result.ok === false) {
+        clearCompanyFields();
+        setValue("porte", "MEDIA", { shouldValidate: true });
+        setValue("segmento", "Atividade empresarial", { shouldValidate: true });
+        setValue("cnaes", [], { shouldValidate: false });
+        setCnpjFetched(false);
+        setCnpjManualFill(true);
+        if (result.error === "Serviço de consulta indisponível") {
+          toast.error("Consulta CNPJ indisponível no momento. Preencha manualmente.");
+        } else {
+          toast.info("CNPJ não localizado. Preencha os dados manualmente.");
+        }
+        return {
+          cnpj: raw,
+          razaoSocial: "",
+          segmento: "",
+          cnpjFetched: false,
+        };
+      }
+      const d = result.data;
+      setValue("razaoSocial", d.razao_social || "", { shouldValidate: true });
+      setValue("nomeFantasia", d.nome_fantasia || "", { shouldValidate: true });
+      setValue("inscricaoEstadual", d.inscricao_estadual || "", { shouldValidate: true });
+      setValue("porte", d.porte || "MEDIA", { shouldValidate: true });
+      setValue("segmento", d.cnae_fiscal_descricao?.trim() || "Atividade empresarial", { shouldValidate: true });
+      setValue("cnaes", d.cnaes ?? [], { shouldValidate: false });
+      // endereço
+      if (d.cep) setValue("cep", maskCEP(String(d.cep)), { shouldValidate: true });
+      setValue("rua", d.logradouro || "", { shouldValidate: true });
+      setValue("numero", d.numero || "", { shouldValidate: true });
+      setValue("complemento", sanitizeComplemento(d.complemento || ""), { shouldValidate: true });
+      setValue("bairro", d.bairro || "", { shouldValidate: true });
+      setValue("cidade", d.municipio || "", { shouldValidate: true });
+      setValue("estado", (d.uf || "").toUpperCase(), { shouldValidate: true });
+      // contatos
+      if (d.ddd_telefone_1) {
+        setValue("telefone", maskPhone(String(d.ddd_telefone_1)), { shouldValidate: true });
+      }
+      if (d.email) setValue("email", String(d.email).toLowerCase(), { shouldValidate: true });
+      setCnpjManualFill(false);
+      setCnpjFetched(true);
+      toast.success("Dados preenchidos automaticamente pela Receita Federal");
+      return {
+        cnpj: raw,
+        razaoSocial: d.razao_social || "",
+        segmento: d.cnae_fiscal_descricao || "",
+        cnpjFetched: true,
+      };
     } catch {
       clearCompanyFields();
       setValue("porte", "MEDIA", { shouldValidate: true });
@@ -778,34 +758,8 @@ export function CadastroForm() {
   };
 
   const handleCnpjCompleted = async (raw: string) => {
-    const digits = raw.replace(/\D/g, "");
-    if (digits.length !== 14) return;
-
-    setCnpjLoading(true);
-    setDocumentCheckLoading(true);
-    setCnpjFetched(false);
-    setCnpjManualFill(false);
-
-    try {
-      const [exists, lookupResult] = await Promise.all([
-        checkExistingSupplier(raw, "CNPJ", { manageLoading: false }),
-        lookupCnpjClient(digits),
-      ]);
-
-      if (exists) return;
-
-      applyCnpjLookupResult(raw, lookupResult);
-    } catch {
-      clearCompanyFields();
-      setValue("porte", "MEDIA", { shouldValidate: true });
-      setValue("segmento", "Atividade empresarial", { shouldValidate: true });
-      setCnpjFetched(false);
-      setCnpjManualFill(true);
-      toast.info("Não foi possível consultar agora. Preencha manualmente.");
-    } finally {
-      setCnpjLoading(false);
-      setDocumentCheckLoading(false);
-    }
+    const exists = await checkExistingSupplier(raw, "CNPJ");
+    if (!exists) await lookupCNPJ(raw);
   };
 
   const lookupCEP = async (raw: string) => {

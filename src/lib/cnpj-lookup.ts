@@ -119,55 +119,26 @@ export function extractCnaesFromEstabelecimento(
   return dedupeCnaes(items);
 }
 
-const CACHE_TTL_MS = 10 * 60 * 1000;
-/** CNPJ.ws costuma levar 12–20s; timeout curto abortava CNPJs válidos. */
-const FETCH_TIMEOUT_MS = 28_000;
+export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjLookupResult | null> {
+  const digits = onlyDigitsCnpj(cnpj);
+  if (digits.length !== 14) return null;
 
-export type CnpjProviderErrorCode =
-  | "not_found"
-  | "unauthorized"
-  | "rate_limit"
-  | "timeout"
-  | "provider_error"
-  | "not_configured";
-
-export type CnpjProviderResult =
-  | { ok: true; data: CnpjLookupResult }
-  | { ok: false; code: CnpjProviderErrorCode; message: string };
-
-function isFetchTimeout(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  return err.name === "TimeoutError" || err.name === "AbortError";
-}
-
-type CacheEntry = { expiresAt: number; data: CnpjLookupResult };
-
-const globalCnpjCache = globalThis as unknown as {
-  cnpjLookupCache?: Map<string, CacheEntry>;
-};
-
-function getCnpjCache(): Map<string, CacheEntry> {
-  if (!globalCnpjCache.cnpjLookupCache) {
-    globalCnpjCache.cnpjLookupCache = new Map();
+  const token = process.env.CNPJ_WS_API_TOKEN;
+  if (!token) {
+    throw new Error("CNPJ_WS_API_TOKEN não configurado");
   }
-  return globalCnpjCache.cnpjLookupCache;
-}
 
-function readCachedCnpj(digits: string): CnpjLookupResult | null {
-  const entry = getCnpjCache().get(digits);
-  if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
-    getCnpjCache().delete(digits);
-    return null;
-  }
-  return entry.data;
-}
+  const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
+    headers: {
+      x_api_token: token,
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
 
-function writeCachedCnpj(digits: string, data: CnpjLookupResult): void {
-  getCnpjCache().set(digits, { expiresAt: Date.now() + CACHE_TTL_MS, data });
-}
+  if (!response.ok) return null;
 
-function mapCnpjWsResponse(data: CnpjWsResponse): CnpjLookupResult {
+  const data = (await response.json()) as CnpjWsResponse;
   const estabelecimento = data.estabelecimento;
   const dddTelefone = [estabelecimento?.ddd1, estabelecimento?.telefone1].filter(Boolean).join("");
   const cnaes = extractCnaesFromEstabelecimento(estabelecimento);
@@ -195,83 +166,4 @@ function mapCnpjWsResponse(data: CnpjWsResponse): CnpjLookupResult {
     ddd_telefone_1: dddTelefone,
     email: estabelecimento?.email || "",
   };
-}
-
-export async function fetchCnpjFromProvider(cnpj: string): Promise<CnpjProviderResult> {
-  const digits = onlyDigitsCnpj(cnpj);
-  if (digits.length !== 14) {
-    return { ok: false, code: "not_found", message: "CNPJ inválido." };
-  }
-
-  const cached = readCachedCnpj(digits);
-  if (cached) return { ok: true, data: cached };
-
-  const token = process.env.CNPJ_WS_API_TOKEN;
-  if (!token) {
-    return {
-      ok: false,
-      code: "not_configured",
-      message: "Serviço de consulta CNPJ não configurado no servidor.",
-    };
-  }
-
-  try {
-    const response = await fetch(`https://comercial.cnpj.ws/cnpj/${digits}`, {
-      headers: {
-        x_api_token: token,
-        Accept: "application/json",
-      },
-      cache: "no-store",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (response.status === 404) {
-      return {
-        ok: false,
-        code: "not_found",
-        message: "CNPJ não localizado na Receita Federal.",
-      };
-    }
-    if (response.status === 401 || response.status === 403) {
-      return {
-        ok: false,
-        code: "unauthorized",
-        message: "Consulta CNPJ indisponível (credencial inválida).",
-      };
-    }
-    if (response.status === 429) {
-      return {
-        ok: false,
-        code: "rate_limit",
-        message: "Limite de consultas CNPJ atingido. Aguarde e tente novamente.",
-      };
-    }
-    if (!response.ok) {
-      console.error("[cnpj-lookup] provider HTTP", response.status, digits);
-      return {
-        ok: false,
-        code: "provider_error",
-        message: "Consulta CNPJ indisponível no momento. Tente novamente.",
-      };
-    }
-
-    const data = (await response.json()) as CnpjWsResponse;
-    const mapped = mapCnpjWsResponse(data);
-    writeCachedCnpj(digits, mapped);
-    return { ok: true, data: mapped };
-  } catch (err) {
-    if (isFetchTimeout(err)) {
-      return {
-        ok: false,
-        code: "timeout",
-        message: "Consulta CNPJ demorou demais. Tente novamente.",
-      };
-    }
-    console.error("[cnpj-lookup] provider error", err);
-    return {
-      ok: false,
-      code: "provider_error",
-      message: "Erro ao consultar CNPJ. Tente novamente.",
-    };
-  }
 }
